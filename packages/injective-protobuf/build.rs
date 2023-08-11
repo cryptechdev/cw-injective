@@ -12,6 +12,7 @@ fn main() {
         .inputs([
             "third_party/proto/cosmos/auth/v1beta1/auth.proto",
             "third_party/proto/cosmos/base/v1beta1/coin.proto",
+            "third_party/proto/cosmos/tx/v1beta1/tx.proto",
             "third_party/proto/cosmos/distribution/v1beta1/distribution.proto",
             "proto/injective/exchange/v1beta1/exchange.proto",
             "proto/injective/exchange/v1beta1/tx.proto",
