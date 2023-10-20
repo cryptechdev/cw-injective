@@ -1,4 +1,5 @@
 pub use exchange::{
+    cancel::CancellationStrategy,
     derivative::{
         DerivativeLimitOrder, DerivativeMarketOrder, DerivativeOrder, DerivativePosition, EffectivePosition, Position, TrimmedDerivativeLimitOrder,
     },
@@ -8,10 +9,11 @@ pub use exchange::{
     market::MarketStatus,
     order::{GenericOrder, GenericTrimmedOrder, OrderData, OrderInfo, OrderSide, OrderType},
     response::{
-        DerivativeMarketResponse, MarketMidPriceAndTOBResponse, MarketVolatilityResponse, OracleVolatilityResponse, PerpetualMarketFundingResponse,
-        PerpetualMarketInfoResponse, QueryAggregateMarketVolumeResponse, QueryAggregateVolumeResponse, QueryDenomDecimalResponse,
-        QueryDenomDecimalsResponse, QueryMarketAtomicExecutionFeeMultiplierResponse, SpotMarketResponse, SubaccountDepositResponse,
-        SubaccountEffectivePositionInMarketResponse, SubaccountPositionInMarketResponse, TraderDerivativeOrdersResponse, TraderSpotOrdersResponse,
+        DerivativeMarketResponse, ExchangeParamsResponse, MarketMidPriceAndTOBResponse, MarketVolatilityResponse, OracleVolatilityResponse,
+        PerpetualMarketFundingResponse, PerpetualMarketInfoResponse, QueryAggregateMarketVolumeResponse, QueryAggregateVolumeResponse,
+        QueryDenomDecimalResponse, QueryDenomDecimalsResponse, QueryMarketAtomicExecutionFeeMultiplierResponse, SpotMarketResponse,
+        SubaccountDepositResponse, SubaccountEffectivePositionInMarketResponse, SubaccountPositionInMarketResponse, TraderDerivativeOrdersResponse,
+        TraderSpotOrdersResponse,
     },
     spot::{MsgCreateSpotMarketOrderResponse, SpotLimitOrder, SpotMarketOrder, SpotOrder, TrimmedSpotLimitOrder},
     spot_market::SpotMarket,
@@ -19,10 +21,7 @@ pub use exchange::{
         addr_to_bech32, bech32_to_hex, checked_address_to_subaccount_id, get_default_subaccount_id_for_checked_address, is_default_subaccount,
         subaccount_id_to_ethereum_address, subaccount_id_to_injective_address, subaccount_id_to_unchecked_injective_address,
     },
-    types::{
-        DenomDecimals, Deposit, Hash, MarketId, MarketType, PriceLevel, ShortSubaccountId, SubaccountId, FROM_WORST_TO_BEST_CANCELLATION_STRATEGY,
-        UNSORTED_CANCELLATION_STRATEGY,
-    },
+    types::{DenomDecimals, Deposit, Hash, MarketId, MarketType, Params, PriceLevel, ShortSubaccountId, SubaccountId},
 };
 pub use oracle::{
     response::{OraclePriceResponse, PythPriceResponse},

@@ -1,5 +1,6 @@
 /// Arithmetic operators for FPDecimal
 use crate::fp_decimal::{FPDecimal, U256};
+use std::iter;
 use std::ops;
 
 impl FPDecimal {
@@ -159,6 +160,80 @@ impl ops::Div for FPDecimal {
 
     fn div(self, rhs: Self) -> Self {
         FPDecimal::_div(self, rhs)
+    }
+}
+
+impl ops::DivAssign for FPDecimal {
+    fn div_assign(&mut self, rhs: FPDecimal) {
+        *self = *self / rhs;
+    }
+}
+
+impl ops::Rem for FPDecimal {
+    type Output = Self;
+
+    fn rem(self, divisor: FPDecimal) -> Self::Output {
+        assert_ne!(divisor, FPDecimal::ZERO);
+
+        if divisor.is_negative() {
+            return self.calculate_negative_remainder(divisor);
+        }
+
+        self.calculate_positive_remainder(divisor)
+    }
+}
+
+impl FPDecimal {
+    fn calculate_positive_remainder(&self, divisor: FPDecimal) -> FPDecimal {
+        let mut remainder = *self;
+
+        if self.is_negative() {
+            while remainder < FPDecimal::ZERO {
+                remainder += divisor;
+            }
+
+            return remainder;
+        }
+
+        while remainder >= divisor {
+            remainder -= divisor;
+        }
+
+        remainder
+    }
+
+    fn calculate_negative_remainder(&self, divisor: FPDecimal) -> FPDecimal {
+        let mut remainder = *self;
+
+        if self.is_negative() {
+            while remainder < divisor {
+                remainder -= divisor;
+            }
+
+            return remainder;
+        }
+
+        while remainder >= -divisor {
+            remainder += divisor;
+        }
+
+        remainder
+    }
+}
+
+#[allow(clippy::suspicious_arithmetic_impl)]
+impl ops::RemAssign for FPDecimal {
+    fn rem_assign(&mut self, b: FPDecimal) {
+        *self = *self % b;
+    }
+}
+
+impl<'a> iter::Sum<&'a Self> for FPDecimal {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = &'a Self>,
+    {
+        iter.fold(FPDecimal::ZERO, |a, b| a + *b)
     }
 }
 
@@ -420,6 +495,8 @@ mod tests {
             sign: 1,
         };
         assert_eq!(FPDecimal::reciprocal(five), point_2);
+        assert_eq!(FPDecimal::reciprocal(point_2), five);
+        assert_eq!(FPDecimal::reciprocal(FPDecimal::must_from_str("0.5")), FPDecimal::TWO);
     }
 
     #[test]
@@ -543,6 +620,17 @@ mod tests {
     }
 
     #[test]
+    fn test_div_assign() {
+        let mut x = FPDecimal::EIGHT;
+        x /= FPDecimal::TWO;
+        assert_eq!(FPDecimal::FOUR, x);
+
+        let mut y = FPDecimal::FIVE;
+        y /= FPDecimal::TWO;
+        assert_eq!(FPDecimal::must_from_str("2.5"), y);
+    }
+
+    #[test]
     fn test_is_negative() {
         let val = FPDecimal::TWO;
         assert!(!val.is_negative());
@@ -577,5 +665,50 @@ mod tests {
         let rhs = FPDecimal::TWO;
         let ans = lhs.abs_diff(&rhs);
         assert_eq!(FPDecimal::from(3u128), ans);
+    }
+
+    #[test]
+    fn test_remainder() {
+        let x = FPDecimal::FIVE;
+        let y = x % FPDecimal::TWO;
+        assert_eq!(FPDecimal::ONE, y);
+
+        let x = -FPDecimal::SEVEN;
+        let y = x % FPDecimal::THREE;
+        assert_eq!(FPDecimal::TWO, y);
+
+        let x = -FPDecimal::SEVEN;
+        let y = x % FPDecimal::SEVEN;
+        assert_eq!(FPDecimal::ZERO, y);
+
+        let x = FPDecimal::must_from_str("3.5");
+        let y = x % FPDecimal::must_from_str("0.8");
+        assert_eq!(FPDecimal::must_from_str("0.3"), y);
+
+        let x = FPDecimal::must_from_str("-3.5");
+        let y = x % FPDecimal::must_from_str("0.8");
+        assert_eq!(FPDecimal::must_from_str("0.5"), y);
+
+        let x = FPDecimal::must_from_str("-3.5");
+        let y = x % FPDecimal::must_from_str("-0.8");
+        assert_eq!(FPDecimal::must_from_str("-0.3"), y);
+    }
+
+    #[test]
+    fn test_remainder_assign() {
+        let mut x = FPDecimal::NINE;
+        x %= FPDecimal::FIVE;
+        assert_eq!(FPDecimal::FOUR, x);
+    }
+
+    #[test]
+    fn test_chain_sum() {
+        let vector = [FPDecimal::ZERO, FPDecimal::ONE, FPDecimal::TWO, FPDecimal::THREE];
+        assert_eq!(FPDecimal::SIX, vector.iter().sum());
+    }
+    #[test]
+    fn test_chain_sum_equal_zero() {
+        let vector = [FPDecimal::ZERO, FPDecimal::ONE, FPDecimal::TWO, -FPDecimal::THREE];
+        assert_eq!(FPDecimal::ZERO, vector.iter().sum());
     }
 }
