@@ -1,18 +1,3 @@
-use cosmwasm_std::{QuerierWrapper, StdResult};
-
-use injective_math::FPDecimal;
-
-use crate::authz::response::{GranteeGrantsResponse, GranterGrantsResponse, GrantsResponse};
-use crate::exchange::{
-    order::OrderSide,
-    response::{
-        DerivativeMarketResponse, MarketMidPriceAndTOBResponse, MarketVolatilityResponse, OracleVolatilityResponse, PerpetualMarketFundingResponse,
-        PerpetualMarketInfoResponse, QueryAggregateVolumeResponse, QueryDenomDecimalResponse, QueryDenomDecimalsResponse,
-        QueryMarketAtomicExecutionFeeMultiplierResponse, QueryOrderbookResponse, SpotMarketResponse, SubaccountDepositResponse,
-        SubaccountEffectivePositionInMarketResponse, SubaccountPositionInMarketResponse, TraderDerivativeOrdersResponse, TraderSpotOrdersResponse,
-    },
-    types::{MarketId, SubaccountId},
-};
 use crate::oracle::{
     response::{OraclePriceResponse, PythPriceResponse},
     types::{OracleHistoryOptions, OracleInfo, OracleType},
@@ -22,6 +7,23 @@ use crate::query::{InjectiveQuery, InjectiveQueryWrapper};
 use crate::route::InjectiveRoute;
 use crate::tokenfactory::response::{TokenFactoryCreateDenomFeeResponse, TokenFactoryDenomSupplyResponse};
 use crate::wasmx::response::QueryContractRegistrationInfoResponse;
+use crate::{
+    exchange::{
+        cancel::CancellationStrategy,
+        order::OrderSide,
+        response::{
+            DerivativeMarketResponse, ExchangeParamsResponse, MarketMidPriceAndTOBResponse, MarketVolatilityResponse, OracleVolatilityResponse,
+            PerpetualMarketFundingResponse, PerpetualMarketInfoResponse, QueryAggregateMarketVolumeResponse, QueryAggregateVolumeResponse,
+            QueryMarketAtomicExecutionFeeMultiplierResponse, QueryOrderbookResponse, SpotMarketResponse, StakedAmountResponse,
+            SubaccountDepositResponse, SubaccountEffectivePositionInMarketResponse, SubaccountPositionInMarketResponse,
+            TraderDerivativeOrdersResponse, TraderSpotOrdersResponse,
+        },
+        types::{MarketId, SubaccountId},
+    },
+    oracle::types::ScalingOptions,
+};
+use cosmwasm_std::{Addr, QuerierWrapper, StdResult};
+use injective_math::FPDecimal;
 
 pub struct InjectiveQuerier<'a> {
     querier: &'a QuerierWrapper<'a, InjectiveQueryWrapper>,
@@ -32,49 +34,17 @@ impl<'a> InjectiveQuerier<'a> {
         InjectiveQuerier { querier }
     }
 
-    // Authz
-    pub fn query_grants(&self, grantee: &str, granter: &str, msg_type_url: &str, pagination: &Option<u32>) -> StdResult<GrantsResponse> {
-        let request = InjectiveQueryWrapper {
-            route: InjectiveRoute::Authz,
-            query_data: InjectiveQuery::Grants {
-                grantee: grantee.to_string(),
-                granter: granter.to_string(),
-                msg_type_url: msg_type_url.to_string(),
-                pagination: *pagination,
-            },
-        };
-
-        let res: GrantsResponse = self.querier.query(&request.into())?;
-        Ok(res)
-    }
-
-    pub fn query_grantee_grants(&self, grantee: &str, pagination: &Option<u32>) -> StdResult<GranteeGrantsResponse> {
-        let request = InjectiveQueryWrapper {
-            route: InjectiveRoute::Authz,
-            query_data: InjectiveQuery::GranteeGrants {
-                grantee: grantee.to_string(),
-                pagination: *pagination,
-            },
-        };
-
-        let res: GranteeGrantsResponse = self.querier.query(&request.into())?;
-        Ok(res)
-    }
-
-    pub fn query_granter_grants(&self, granter: &str, pagination: &Option<u32>) -> StdResult<GranterGrantsResponse> {
-        let request = InjectiveQueryWrapper {
-            route: InjectiveRoute::Authz,
-            query_data: InjectiveQuery::GranterGrants {
-                granter: granter.to_string(),
-                pagination: *pagination,
-            },
-        };
-
-        let res: GranterGrantsResponse = self.querier.query(&request.into())?;
-        Ok(res)
-    }
-
     // Exchange
+    pub fn query_exchange_params(&self) -> StdResult<ExchangeParamsResponse> {
+        let request = InjectiveQueryWrapper {
+            route: InjectiveRoute::Exchange,
+            query_data: InjectiveQuery::ExchangeParams {},
+        };
+
+        let res: ExchangeParamsResponse = self.querier.query(&request.into())?;
+        Ok(res)
+    }
+
     pub fn query_subaccount_deposit<T: Into<SubaccountId> + Clone, P: Into<String> + Clone>(
         &self,
         subaccount_id: &'a T,
@@ -224,7 +194,7 @@ impl<'a> InjectiveQuerier<'a> {
         subaccount_id: &'a P,
         base_amount: FPDecimal,
         quote_amount: FPDecimal,
-        strategy: i32,
+        strategy: CancellationStrategy,
         reference_price: Option<FPDecimal>,
     ) -> StdResult<TraderSpotOrdersResponse> {
         let request = InjectiveQueryWrapper {
@@ -248,7 +218,7 @@ impl<'a> InjectiveQuerier<'a> {
         market_id: &'a T,
         subaccount_id: &'a P,
         quote_amount: FPDecimal,
-        strategy: i32,
+        strategy: CancellationStrategy,
         reference_price: Option<FPDecimal>,
     ) -> StdResult<TraderDerivativeOrdersResponse> {
         let request = InjectiveQueryWrapper {
@@ -327,7 +297,7 @@ impl<'a> InjectiveQuerier<'a> {
         Ok(res)
     }
 
-    pub fn query_aggregate_market_volume<T: Into<MarketId> + Clone>(&self, market_id: &'a T) -> StdResult<QueryAggregateVolumeResponse> {
+    pub fn query_aggregate_market_volume<T: Into<MarketId> + Clone>(&self, market_id: &'a T) -> StdResult<QueryAggregateMarketVolumeResponse> {
         let request = InjectiveQueryWrapper {
             route: InjectiveRoute::Exchange,
             query_data: InjectiveQuery::AggregateMarketVolume {
@@ -335,7 +305,7 @@ impl<'a> InjectiveQuerier<'a> {
             },
         };
 
-        let res: QueryAggregateVolumeResponse = self.querier.query(&request.into())?;
+        let res: QueryAggregateMarketVolumeResponse = self.querier.query(&request.into())?;
         Ok(res)
     }
 
@@ -346,30 +316,7 @@ impl<'a> InjectiveQuerier<'a> {
                 account: account_id.clone().into(),
             },
         };
-
         let res: QueryAggregateVolumeResponse = self.querier.query(&request.into())?;
-        Ok(res)
-    }
-
-    pub fn query_denom_decimal<T: Into<String> + Clone>(&self, denom: &'a T) -> StdResult<QueryDenomDecimalResponse> {
-        let request = InjectiveQueryWrapper {
-            route: InjectiveRoute::Exchange,
-            query_data: InjectiveQuery::DenomDecimal { denom: denom.clone().into() },
-        };
-
-        let res: QueryDenomDecimalResponse = self.querier.query(&request.into())?;
-        Ok(res)
-    }
-
-    pub fn query_denom_decimals<T: Into<Vec<String>> + Clone>(&self, denoms: &'a T) -> StdResult<QueryDenomDecimalsResponse> {
-        let request = InjectiveQueryWrapper {
-            route: InjectiveRoute::Exchange,
-            query_data: InjectiveQuery::DenomDecimals {
-                denoms: denoms.clone().into(),
-            },
-        };
-
-        let res: QueryDenomDecimalsResponse = self.querier.query(&request.into())?;
         Ok(res)
     }
 
@@ -406,6 +353,23 @@ impl<'a> InjectiveQuerier<'a> {
         Ok(res)
     }
 
+    pub fn query_derivative_market_orderbook<T: Into<MarketId> + Clone>(
+        &self,
+        market_id: &'a T,
+        limit_cumulative_notional: FPDecimal,
+    ) -> StdResult<QueryOrderbookResponse> {
+        let request = InjectiveQueryWrapper {
+            route: InjectiveRoute::Exchange,
+            query_data: InjectiveQuery::DerivativeOrderbook {
+                market_id: market_id.clone().into(),
+                limit: 0,
+                limit_cumulative_notional: Some(limit_cumulative_notional),
+            },
+        };
+        let res: QueryOrderbookResponse = self.querier.query(&request.into())?;
+        Ok(res)
+    }
+
     pub fn query_market_atomic_execution_fee_multiplier<T: Into<MarketId> + Clone>(
         &self,
         market_id: &'a T,
@@ -418,6 +382,20 @@ impl<'a> InjectiveQuerier<'a> {
         };
 
         let res: QueryMarketAtomicExecutionFeeMultiplierResponse = self.querier.query(&request.into())?;
+        Ok(res)
+    }
+
+    // Staking
+    pub fn query_staked_amount(&self, delegator_address: Addr, max_delegations: u16) -> StdResult<StakedAmountResponse> {
+        let request = InjectiveQueryWrapper {
+            route: InjectiveRoute::Staking,
+            query_data: InjectiveQuery::StakedAmount {
+                delegator_address,
+                max_delegations,
+            },
+        };
+
+        let res: StakedAmountResponse = self.querier.query(&request.into())?;
         Ok(res)
     }
 
@@ -447,13 +425,20 @@ impl<'a> InjectiveQuerier<'a> {
         Ok(res)
     }
 
-    pub fn query_oracle_price(&self, oracle_type: &'a OracleType, base: &str, quote: &str) -> StdResult<OraclePriceResponse> {
+    pub fn query_oracle_price(
+        &self,
+        oracle_type: &'a OracleType,
+        base: &str,
+        quote: &str,
+        scaling_options: Option<ScalingOptions>,
+    ) -> StdResult<OraclePriceResponse> {
         let request = InjectiveQueryWrapper {
             route: InjectiveRoute::Oracle,
             query_data: InjectiveQuery::OraclePrice {
                 oracle_type: *oracle_type,
                 base: base.into(),
                 quote: quote.into(),
+                scaling_options,
             },
         };
 

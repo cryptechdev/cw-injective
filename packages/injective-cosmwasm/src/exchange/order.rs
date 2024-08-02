@@ -22,6 +22,10 @@ pub enum OrderType {
     Undefined = 0,
     Buy = 1,
     Sell = 2,
+    StopBuy = 3,
+    StopSell = 4,
+    TakeBuy = 5,
+    TakeSell = 6,
     BuyPo = 7,
     SellPo = 8,
     BuyAtomic = 9,
@@ -63,6 +67,7 @@ pub struct OrderInfo {
     pub fee_recipient: Option<Addr>,
     pub price: FPDecimal,
     pub quantity: FPDecimal,
+    pub cid: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -72,6 +77,7 @@ pub struct ShortOrderInfo {
     pub fee_recipient: Option<Addr>,
     pub price: FPDecimal,
     pub quantity: FPDecimal,
+    pub cid: Option<String>,
 }
 
 impl From<OrderInfo> for ShortOrderInfo {
@@ -81,6 +87,7 @@ impl From<OrderInfo> for ShortOrderInfo {
             fee_recipient: order_info.fee_recipient,
             price: order_info.price,
             quantity: order_info.quantity,
+            cid: order_info.cid,
         }
     }
 }

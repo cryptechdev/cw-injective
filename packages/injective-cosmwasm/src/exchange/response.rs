@@ -1,3 +1,4 @@
+use cosmwasm_std::Uint128;
 use injective_math::FPDecimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -7,9 +8,14 @@ use crate::exchange::{
     derivative_market::{FullDerivativeMarket, PerpetualMarketFunding, PerpetualMarketInfo},
     spot::TrimmedSpotLimitOrder,
     spot_market::SpotMarket,
-    types::{DenomDecimals, Deposit, MarketVolume, PriceLevel, VolumeByType},
+    types::{DenomDecimals, Deposit, MarketVolume, Params, PriceLevel, VolumeByType},
 };
 use crate::oracle::volatility::{MetadataStatistics, TradeRecord};
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+pub struct ExchangeParamsResponse {
+    pub params: Option<Params>,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct SubaccountDepositResponse {
@@ -48,7 +54,7 @@ pub struct TraderSpotOrdersResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct DerivativeMarketResponse {
-    pub market: FullDerivativeMarket,
+    pub market: Option<FullDerivativeMarket>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -71,6 +77,11 @@ pub struct MarketVolatilityResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+pub struct StakedAmountResponse {
+    pub staked_amount: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct OracleVolatilityResponse {
     pub volatility: Option<FPDecimal>,
     pub history_metadata: Option<MetadataStatistics>,
@@ -88,7 +99,7 @@ pub struct QueryOrderbookResponse {
 /// Response to query for aggregate volumes of a given account/subaccount - divided by markets
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct QueryAggregateVolumeResponse {
-    pub aggregate_volumes: Vec<MarketVolume>,
+    pub aggregate_volumes: Option<Vec<MarketVolume>>,
 }
 
 /// Response to query for aggregate volume for a given market

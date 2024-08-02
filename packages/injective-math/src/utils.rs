@@ -1,6 +1,8 @@
 use crate::FPDecimal;
-use bigint::U256;
+use primitive_types::U256;
+
 use cosmwasm_std::StdError;
+use std::cmp::Ordering;
 use std::{fmt::Display, str::FromStr};
 
 #[derive(Default)]
@@ -13,7 +15,7 @@ pub enum RangeEnds {
 }
 
 pub fn parse_dec(vs: &str, min: Option<&FPDecimal>, max: Option<&FPDecimal>, range_ends: RangeEnds) -> Result<FPDecimal, StdError> {
-    let v = FPDecimal::from_str(vs)?;
+    let v = FPDecimal::must_from_str(vs);
     ensure_band(&v, min, max, range_ends)?;
     Ok(v)
 }
@@ -68,16 +70,45 @@ pub fn band_error_to_human(err: StdError, value_name: &str) -> StdError {
 }
 
 pub fn div_dec(num: FPDecimal, denom: FPDecimal) -> FPDecimal {
-    if denom == FPDecimal::zero() {
+    if denom == FPDecimal::ZERO {
         denom
     } else {
         num / denom
     }
 }
 
+pub fn floor(num: FPDecimal, min_tick: FPDecimal) -> FPDecimal {
+    // min_tick has to be a positive number
+    assert!(min_tick >= FPDecimal::ZERO);
+    if num.is_zero() {
+        return num;
+    }
+    let remainder = num % min_tick;
+    num - remainder
+}
+
+pub fn round(num: FPDecimal, min_tick: FPDecimal) -> FPDecimal {
+    if min_tick < FPDecimal::must_from_str("0.00000001") {
+        panic!("min_tick should be greater than {}", FPDecimal::must_from_str("0.00000001"));
+    }
+    let num_floor = floor(num, min_tick);
+    let diff = num - num_floor;
+    match diff.cmp(&(min_tick / FPDecimal::TWO)) {
+        Ordering::Less => num_floor,
+        Ordering::Equal => {
+            if num_floor / (min_tick * FPDecimal::TWO) == FPDecimal::ZERO {
+                num_floor
+            } else {
+                num_floor + min_tick
+            }
+        }
+        Ordering::Greater => num_floor + min_tick,
+    }
+}
+
 pub fn round_to_min_tick(num: FPDecimal, min_tick: FPDecimal) -> FPDecimal {
     if num < min_tick {
-        FPDecimal::zero()
+        FPDecimal::ZERO
     } else {
         let shifted = div_dec(num, min_tick).int();
         shifted * min_tick
@@ -86,7 +117,7 @@ pub fn round_to_min_tick(num: FPDecimal, min_tick: FPDecimal) -> FPDecimal {
 
 pub fn round_to_nearest_tick(num: FPDecimal, min_tick: FPDecimal) -> FPDecimal {
     if num < min_tick {
-        return FPDecimal::zero();
+        return FPDecimal::ZERO;
     }
 
     let remainder = FPDecimal::from(num.num % min_tick.num);
@@ -97,9 +128,110 @@ pub fn round_to_nearest_tick(num: FPDecimal, min_tick: FPDecimal) -> FPDecimal {
     }
 }
 
+pub fn round_up_to_min_tick(num: FPDecimal, min_tick: FPDecimal) -> FPDecimal {
+    if num < min_tick {
+        return min_tick;
+    }
+
+    let remainder = FPDecimal::from(num.num % min_tick.num);
+
+    if remainder.num.is_zero() {
+        return num;
+    }
+
+    FPDecimal::from(num.num - remainder.num + min_tick.num)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fp_decimal::scale::Scaled;
+
+    #[test]
+    fn test_floor() {
+        assert_eq!(floor(FPDecimal::must_from_str("0"), FPDecimal::must_from_str("0.1")), FPDecimal::ZERO);
+        assert_eq!(
+            floor(FPDecimal::must_from_str("0.13"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("0.1")
+        );
+        assert_eq!(
+            floor(FPDecimal::must_from_str("0.19"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("0.1")
+        );
+        assert_eq!(
+            floor(FPDecimal::must_from_str("1.19"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("1.1")
+        );
+        assert_eq!(floor(FPDecimal::must_from_str("2.19"), FPDecimal::ONE), FPDecimal::TWO);
+
+        assert_eq!(floor(FPDecimal::must_from_str("-0"), FPDecimal::must_from_str("0.1")), FPDecimal::ZERO);
+        assert_eq!(
+            floor(FPDecimal::must_from_str("-0.13"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("-0.2")
+        );
+        assert_eq!(
+            floor(FPDecimal::must_from_str("-0.19"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("-0.2")
+        );
+        assert_eq!(
+            floor(FPDecimal::must_from_str("-1.19"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("-1.2")
+        );
+        assert_eq!(
+            floor(FPDecimal::must_from_str("-2.19"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("-2.2")
+        );
+
+        assert_eq!(floor(FPDecimal::must_from_str("-2.19"), FPDecimal::ONE), FPDecimal::must_from_str("-3"));
+    }
+
+    #[test]
+    fn test_round() {
+        assert_eq!(round(FPDecimal::must_from_str("0.13"), FPDecimal::ONE), FPDecimal::ZERO);
+        assert_eq!(round(FPDecimal::must_from_str("0.49"), FPDecimal::ONE), FPDecimal::ZERO);
+        assert_eq!(round(FPDecimal::must_from_str("0.5"), FPDecimal::ONE), FPDecimal::ZERO);
+        assert_eq!(round(FPDecimal::must_from_str("0.50009"), FPDecimal::ONE), FPDecimal::ONE);
+
+        assert_eq!(round(FPDecimal::must_from_str("-0.13"), FPDecimal::ONE), FPDecimal::ZERO);
+        assert_eq!(round(FPDecimal::must_from_str("-0.49"), FPDecimal::ONE), FPDecimal::ZERO);
+        assert_eq!(round(FPDecimal::must_from_str("-0.5"), FPDecimal::ONE), FPDecimal::ZERO);
+        assert_eq!(round(FPDecimal::must_from_str("-0.51"), FPDecimal::ONE), -FPDecimal::ONE);
+        assert_eq!(round(FPDecimal::must_from_str("-1.50009"), FPDecimal::ONE), -FPDecimal::TWO);
+    }
+
+    #[test]
+    fn test_round_with_scaled_numbers() {
+        assert_eq!(round(FPDecimal::must_from_str("0"), FPDecimal::must_from_str("0.1")), FPDecimal::ZERO);
+        assert_eq!(
+            round(FPDecimal::must_from_str("0.13"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("0.1")
+        );
+        assert_eq!(
+            round(FPDecimal::must_from_str("0.50009"), FPDecimal::must_from_str("0.0001")),
+            FPDecimal::must_from_str("0.5001")
+        );
+
+        assert_eq!(round(FPDecimal::must_from_str("-0"), FPDecimal::must_from_str("0.1")), FPDecimal::ZERO);
+        assert_eq!(
+            round(FPDecimal::must_from_str("-0.13"), FPDecimal::must_from_str("0.1")),
+            FPDecimal::must_from_str("-0.1")
+        );
+        assert_eq!(
+            round(FPDecimal::must_from_str("-0.50009"), FPDecimal::must_from_str("0.0001")),
+            FPDecimal::must_from_str("-0.5001")
+        );
+
+        assert_eq!(round(FPDecimal::must_from_str("-1.50009"), FPDecimal::ONE.scaled(1)), FPDecimal::ZERO);
+        assert_eq!(
+            round(FPDecimal::must_from_str("-1.50009").scaled(1), FPDecimal::ONE.scaled(1)),
+            -FPDecimal::TWO.scaled(1)
+        );
+        assert_eq!(round(FPDecimal::must_from_str("-1.50009"), FPDecimal::ONE.scaled(1)), FPDecimal::ZERO);
+        assert_eq!(
+            round(FPDecimal::must_from_str("-1.50009").scaled(1), FPDecimal::ONE.scaled(1)),
+            -FPDecimal::TWO.scaled(1)
+        );
+    }
 
     #[test]
     fn test_div_dec() {
@@ -148,6 +280,14 @@ mod tests {
             FPDecimal::must_from_str("2.0")
         );
         assert_eq!(
+            round_to_nearest_tick(
+                FPDecimal::must_from_str("0.000000057575228461"),
+                FPDecimal::must_from_str("0.00000000000001")
+            ),
+            FPDecimal::must_from_str("0.00000005757523")
+        );
+
+        assert_eq!(
             round_to_nearest_tick(FPDecimal::must_from_str("10.0"), FPDecimal::must_from_str("3.0")),
             FPDecimal::must_from_str("9.0")
         );
@@ -159,14 +299,41 @@ mod tests {
             ["1.009932", "1.01"],
             ["0.9932", "0.99"],
         ];
-        let precision = FPDecimal::from_str("0.01").unwrap();
+        let precision = FPDecimal::must_from_str("0.01");
 
         for item in &data {
-            let input = FPDecimal::from_str(item[0]).unwrap();
-            let expected = FPDecimal::from_str(item[1]).unwrap();
+            let input = FPDecimal::must_from_str(item[0]);
+            let expected = FPDecimal::must_from_str(item[1]);
 
             let output = round_to_nearest_tick(input, precision);
             assert_eq!(expected, output);
         }
+    }
+
+    #[test]
+    fn test_round_up_to_min_tick() {
+        let num = FPDecimal::from(37u128);
+        let min_tick = FPDecimal::from(10u128);
+
+        let result = round_up_to_min_tick(num, min_tick);
+        assert_eq!(result, FPDecimal::from(40u128));
+
+        let num = FPDecimal::must_from_str("0.00000153");
+        let min_tick = FPDecimal::must_from_str("0.000001");
+
+        let result = round_up_to_min_tick(num, min_tick);
+        assert_eq!(result, FPDecimal::must_from_str("0.000002"));
+
+        let num = FPDecimal::must_from_str("0.000001");
+        let min_tick = FPDecimal::must_from_str("0.000001");
+
+        let result = round_up_to_min_tick(num, min_tick);
+        assert_eq!(result, FPDecimal::must_from_str("0.000001"));
+
+        let num = FPDecimal::must_from_str("0.0000001");
+        let min_tick = FPDecimal::must_from_str("0.000001");
+
+        let result = round_up_to_min_tick(num, min_tick);
+        assert_eq!(result, FPDecimal::must_from_str("0.000001"));
     }
 }

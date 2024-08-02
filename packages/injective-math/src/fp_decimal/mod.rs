@@ -1,7 +1,8 @@
 use std::str::FromStr;
+use std::{convert::TryFrom, ops::Neg};
 
-use bigint::U256;
-use cosmwasm_std::{Uint128, Uint256};
+use cosmwasm_std::{Decimal256, StdError, Uint128, Uint256};
+use primitive_types::U256;
 use schemars::JsonSchema;
 
 #[allow(clippy::upper_case_acronyms)]
@@ -77,13 +78,51 @@ impl From<Uint256> for FPDecimal {
     }
 }
 
-// #[cfg(not(target_arch = "wasm32"))]
-// impl convert::From<FPDecimal> for f32 {
-//     fn from(x: FPDecimal) -> f32 {
-//         f32::from_str(&x.to_string()).unwrap()
-//     }
-// }
+// impl that converts cosmwasm Decimal256 to FPDecimal.
+impl From<Decimal256> for FPDecimal {
+    fn from(value: Decimal256) -> FPDecimal {
+        let atomics = value.atomics().to_be_bytes();
+        FPDecimal {
+            num: atomics.into(),
+            sign: 1,
+        }
+    }
+}
 
+// impl that tries to convert FPDecimal into Decimal256.
+impl TryFrom<FPDecimal> for Decimal256 {
+    type Error = StdError;
+
+    fn try_from(fp_decimal: FPDecimal) -> Result<Self, Self::Error> {
+        if fp_decimal.is_negative() {
+            return Err(StdError::generic_err(format!("Value {} must be >= {}", fp_decimal.num, 0)));
+        }
+
+        let fp_decimal_num_uint256 = fp_decimal.to_u256();
+
+        Ok(Decimal256::new(fp_decimal_num_uint256))
+    }
+}
+
+impl Neg for FPDecimal {
+    type Output = FPDecimal;
+    fn neg(mut self) -> Self::Output {
+        if self.is_zero() {
+            return self;
+        }
+        match self.sign {
+            0 => {
+                self.sign = 1;
+            }
+            _ => {
+                self.sign = 0;
+            }
+        }
+        self
+    }
+}
+
+// constants
 impl FPDecimal {
     pub const MAX: FPDecimal = FPDecimal { num: U256::MAX, sign: 1 };
     pub const MIN: FPDecimal = FPDecimal { num: U256::MAX, sign: 0 };
@@ -96,6 +135,12 @@ impl FPDecimal {
         num: U256([0, 0, 0, 0]),
         sign: 1,
     };
+
+    pub const LN2: FPDecimal = FPDecimal {
+        num: U256([693_147_180_559_945_309, 0, 0, 0]),
+        sign: 1,
+    };
+
     pub const ONE: FPDecimal = FPDecimal {
         num: U256([1_000_000_000_000_000_000, 0, 0, 0]),
         sign: 1,
@@ -136,6 +181,15 @@ impl FPDecimal {
         num: U256([9_000_000_000_000_000_000, 0, 0, 0]),
         sign: 1,
     };
+    pub const TEN: FPDecimal = FPDecimal {
+        num: U256([10_000_000_000_000_000_000, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const ELEVEN: FPDecimal = FPDecimal {
+        num: U256([11_000_000_000_000_000_000, 0, 0, 0]),
+        sign: 1,
+    };
 
     pub const SMALLEST_PRECISION: FPDecimal = FPDecimal {
         num: U256([1, 0, 0, 0]),
@@ -147,38 +201,130 @@ impl FPDecimal {
         sign: 1,
     };
 
+    pub const E: FPDecimal = FPDecimal {
+        // 1_000_000_000_000_000_000
+        num: U256([2_718_281_828_459_045_235, 0, 0, 0]),
+        sign: 1,
+    };
+
     pub const E_10: FPDecimal = FPDecimal {
-        num: U256([1053370797511854089u64, 1194u64, 0, 0]),
+        num: U256([1_053_370_797_511_854_089u64, 1194u64, 0, 0]),
         sign: 1,
     }; // e^10
 
-    pub const E: FPDecimal = FPDecimal {
-        num: U256([2718281828459045235, 0, 0, 0]),
-        sign: 1,
-    };
-
-    pub const LN_10: FPDecimal = FPDecimal {
-        num: U256([2302585092994045684, 0, 0, 0]),
-        sign: 1,
-    }; // ln(10)
-
     pub const LN_1_5: FPDecimal = FPDecimal {
-        num: U256([405465108108164382, 0, 0, 0]),
+        // 405_465_108_704_634_977
+        // 0.40546510810816438199
+        num: U256([405_465_108_108_164_382, 0, 0, 0]),
         sign: 1,
     }; // ln(1.5)
 
-    pub const PI: FPDecimal = FPDecimal {
-        num: U256([3_141_592_653_589_793_238, 0, 0, 0]),
+    pub const LN_2: FPDecimal = FPDecimal {
+        // 405_465_108_704_634_977
+        num: U256([693_147_180_559_945_309, 0, 0, 0]),
+        sign: 1,
+    }; // ln(1.5)
+
+    pub const LN_10: FPDecimal = FPDecimal {
+        num: U256([2_302_585_092_994_045_684, 0, 0, 0]),
+        sign: 1,
+    }; // ln(10)
+
+    pub const LOG2_10: FPDecimal = FPDecimal {
+        // 3.321_928_094_887_362_347
+        num: U256([3_321_928_094_887_362_347, 0, 0, 0]),
+        sign: 1,
+    }; // log2(10)
+
+    pub const LOG2_E: FPDecimal = FPDecimal {
+        // 1.4426950408889633306
+        num: U256([1_442_695_040_888_963_330, 0, 0, 0]),
+        sign: 1,
+    }; // log2(10)
+
+    pub const LOG10_2: FPDecimal = FPDecimal {
+        // 0.30102999566398119523
+        num: U256([301_029_995_663_981_195, 0, 0, 0]),
         sign: 1,
     };
 
-    pub const fn one() -> FPDecimal {
-        FPDecimal::ONE
-    }
+    pub const LOG10_E: FPDecimal = FPDecimal {
+        // 0.30102999566398119523
+        num: U256([301_029_995_663_981_195, 0, 0, 0]),
+        sign: 1,
+    };
 
-    pub const fn zero() -> FPDecimal {
-        FPDecimal::ZERO
-    }
+    pub const PI: FPDecimal = FPDecimal {
+        num: U256([3_141_592_653_589_793_115, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_1_PI: FPDecimal = FPDecimal {
+        // 318_309_886_183_790_683
+        num: U256([318_309_886_183_790_683, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_1_SQRT_2: FPDecimal = FPDecimal {
+        // 0.707106781186547524
+        num: U256([707_106_781_186_547_524, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_2_PI: FPDecimal = FPDecimal {
+        // 636_619_772_367_581_3679
+        num: U256([636_619_772_367_581_368, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_2_SQRT_PI: FPDecimal = FPDecimal {
+        // 1_128_379_167_095_512_595
+        num: U256([1_128_379_167_095_512_595, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_PI_2: FPDecimal = FPDecimal {
+        // 1_570_796_326_794_896_558
+        num: U256([1_570_796_326_794_896_558, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_PI_3: FPDecimal = FPDecimal {
+        // 1_047_197_551_196_597_705
+        num: U256([1_047_197_551_196_597_705, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_PI_4: FPDecimal = FPDecimal {
+        // 0_785_398_163_397_448_279
+        num: U256([785_398_163_397_448_279, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_PI_6: FPDecimal = FPDecimal {
+        // 523_598_775_598_298_852
+        num: U256([523_598_775_598_298_852, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const FRAC_PI_8: FPDecimal = FPDecimal {
+        // 392_699_081_698_724_139
+        num: U256([392_699_081_698_724_139, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const SQRT_2: FPDecimal = FPDecimal {
+        // 1.414_213_562_373_095_048
+        num: U256([1_414_213_562_373_095_048, 0, 0, 0]),
+        sign: 1,
+    };
+
+    pub const TAU: FPDecimal = FPDecimal {
+        // 2*PI
+        // 6.283185307179586232
+        num: U256([6_283_185_307_179_586_232, 0, 0, 0]),
+        sign: 1,
+    };
 
     pub fn is_zero(&self) -> bool {
         self.num.is_zero()
@@ -193,37 +339,21 @@ impl FPDecimal {
         self.sign == 0
     }
 
-    pub const fn max() -> FPDecimal {
-        FPDecimal::MAX
-    }
-
-    pub const fn min() -> FPDecimal {
-        FPDecimal::MIN
-    }
-
-    pub const fn e() -> FPDecimal {
-        FPDecimal::E
-    }
-
-    pub fn _int(x: FPDecimal) -> FPDecimal {
+    pub fn _int(x: FPDecimal) -> Self {
         let x1 = x.num;
         let x1_1 = x1 / FPDecimal::ONE.num;
         let x_final = x1_1 * FPDecimal::ONE.num;
         FPDecimal { num: x_final, sign: x.sign }
     }
 
-    pub fn int(&self) -> FPDecimal {
+    pub fn int(&self) -> Self {
         FPDecimal::_int(*self)
     }
     pub fn is_int(&self) -> bool {
         *self == self.int()
     }
 
-    pub fn _sign(x: FPDecimal) -> i8 {
-        x.sign
-    }
-
-    pub fn _fraction(x: FPDecimal) -> FPDecimal {
+    pub fn _fraction(x: FPDecimal) -> Self {
         let x1 = x.num;
         FPDecimal {
             num: x1 - FPDecimal::_int(x).num,
@@ -231,14 +361,30 @@ impl FPDecimal {
         }
     }
 
-    pub fn fraction(&self) -> FPDecimal {
+    pub fn fraction(&self) -> Self {
         FPDecimal::_fraction(*self)
+    }
+
+    pub fn into_uint256_ceil(self) -> Uint256 {
+        let uint256 = self.to_u256();
+        uint256.checked_add(1u64.into()).unwrap() // Add 1 to round up
+    }
+
+    pub fn into_uint256_floor(self) -> Uint256 {
+        self.to_u256()
+    }
+
+    pub fn to_u256(&self) -> Uint256 {
+        let mut bytes = [0u8; 32];
+        self.num.to_big_endian(&mut bytes);
+        Uint256::from_be_bytes(bytes)
     }
 }
 
 mod arithmetic;
 mod comparison;
 mod display;
+pub mod error;
 mod exp;
 mod factorial;
 mod from_str;
@@ -247,3 +393,122 @@ mod log;
 pub mod scale;
 mod serde;
 mod trigonometry;
+
+#[cfg(test)]
+mod tests {
+    use std::{convert::TryFrom, str::FromStr};
+
+    use crate::fp_decimal::U256;
+    use crate::FPDecimal;
+    use cosmwasm_std::{Decimal256, Uint256};
+
+    #[test]
+    fn test_const_pi() {
+        let pi = FPDecimal::PI;
+        let three_point_two = FPDecimal::must_from_str("3.2");
+        let three_point_one = FPDecimal::must_from_str("3.1");
+        let pi_precise = FPDecimal::must_from_str("3.141592653589793115");
+        assert!(three_point_one < pi);
+        assert!(pi < three_point_two);
+        assert_eq!(pi, pi_precise);
+    }
+
+    #[test]
+    fn test_const_ln2() {
+        let ln2 = FPDecimal::LN2;
+        let ln2_precise = FPDecimal::must_from_str("0.693147180559945309");
+        assert_eq!(ln2, ln2_precise);
+    }
+
+    #[test]
+    fn test_neg_sign() {
+        let lhs = FPDecimal::ZERO - FPDecimal::ONE;
+        let rhs = -FPDecimal::ONE;
+        assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn test_neg_zero() {
+        let lhs = FPDecimal::ZERO;
+        let rhs = -FPDecimal::ZERO;
+        assert_eq!(lhs, rhs);
+    }
+
+    #[test]
+    fn test_is_int() {
+        assert!(FPDecimal::TWO.is_int());
+    }
+
+    #[test]
+    fn test_is_not_int() {
+        assert!(!FPDecimal::must_from_str("2.1").is_int());
+        assert_eq!(FPDecimal::must_from_str("2.1") % FPDecimal::ONE, FPDecimal::must_from_str("0.1"));
+    }
+
+    #[test]
+    fn test_to_u256() {
+        let fp_decimal = FPDecimal {
+            num: U256::from(12345u64),
+            sign: 1, // Assuming it's always positive
+        };
+
+        let uint256 = fp_decimal.to_u256();
+        assert_eq!(uint256, Uint256::from(12345u64));
+    }
+
+    #[test]
+    fn into_uint256_floor() {
+        let fp_decimal = FPDecimal {
+            num: U256::from_dec_str("12345").unwrap(),
+            sign: 1,
+        };
+
+        let uint256 = fp_decimal.into_uint256_floor();
+        assert_eq!(uint256, Uint256::from(12345u64));
+    }
+
+    #[test]
+    fn into_uint256_ceil() {
+        let fp_decimal = FPDecimal {
+            num: U256::from_dec_str("12345").unwrap(),
+            sign: 1,
+        };
+
+        let uint256 = fp_decimal.into_uint256_ceil();
+        assert_eq!(uint256, Uint256::from(12346u64));
+    }
+
+    #[test]
+    fn dec256_to_fpdecimal_conversion() {
+        // Decimal value for testing
+        let decimal_value = Decimal256::from_str("1.234").unwrap(); // returns 1.234
+
+        //  Perform the conversion
+        let fp_decimal: FPDecimal = decimal_value.into();
+
+        // Check if the conversion produced the expected FPDecimal
+
+        let expected_fp_decimal = FPDecimal::must_from_str("1.234");
+
+        // Use assertions to check if the actual value matches the expected value
+        assert_eq!(fp_decimal.num, expected_fp_decimal.num);
+        assert_eq!(fp_decimal.sign, expected_fp_decimal.sign);
+    }
+
+    #[test]
+    fn fpdecimal_to_dec256() {
+        // Test a valid positive value
+        let fp_decimal_valid = FPDecimal::must_from_str("1.2345");
+        let decimal_valid = Decimal256::try_from(fp_decimal_valid).unwrap();
+        assert_eq!(decimal_valid.to_string(), fp_decimal_valid.to_string());
+
+        // Test a valid zero value
+        let fp_decimal_zero = FPDecimal::ZERO;
+        let decimal_zero = Decimal256::try_from(fp_decimal_zero).unwrap();
+        assert_eq!(decimal_zero.to_string(), "0");
+
+        // Test a negative value (should fail)
+        let fp_decimal_negative = FPDecimal::must_from_str("-1.2345");
+        assert!(Decimal256::try_from(fp_decimal_negative).is_err());
+    }
+}

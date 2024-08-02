@@ -1,14 +1,43 @@
-use cosmwasm_std::{Empty, StdError, StdResult};
+use cosmwasm_std::{Coin, Empty, StdError, StdResult};
 use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
 use injective_math::FPDecimal;
 use schemars::JsonSchema;
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
+use serde::ser::Error as SerError;
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::fmt;
 
 use crate::InjectiveQuerier;
 
-pub const UNSORTED_CANCELLATION_STRATEGY: i32 = 0;
-pub const FROM_WORST_TO_BEST_CANCELLATION_STRATEGY: i32 = 1;
+/// Params is the response type for the exchange params
+#[allow(non_snake_case)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+pub struct Params {
+    pub spot_market_instant_listing_fee: Coin,
+    pub derivative_market_instant_listing_fee: Coin,
+    pub default_spot_maker_fee_rate: FPDecimal,
+    pub default_spot_taker_fee_rate: FPDecimal,
+    pub default_derivative_maker_fee_rate: FPDecimal,
+    pub default_derivative_taker_fee_rate: FPDecimal,
+    pub default_initial_margin_ratio: FPDecimal,
+    pub default_maintenance_margin_ratio: FPDecimal,
+    pub default_funding_interval: i64,
+    pub relayer_fee_share_rate: FPDecimal,
+    pub default_hourly_funding_rate_cap: FPDecimal,
+    pub default_hourly_interest_rate: FPDecimal,
+    pub max_derivative_order_side_count: u32,
+    pub inj_reward_staked_requirement_threshold: FPDecimal,
+    pub trading_rewards_vesting_duration: i64,
+    pub liquidator_reward_share_rate: FPDecimal,
+    pub binary_options_market_instant_listing_fee: Coin,
+    #[serde(default)]
+    pub atomic_market_order_access_level: AtomicMarketOrderAccessLevel,
+    pub spot_atomic_market_order_fee_multiplier: FPDecimal,
+    pub derivative_atomic_market_order_fee_multiplier: FPDecimal,
+    pub binary_options_atomic_market_order_fee_multiplier: FPDecimal,
+    pub minimal_protocol_fee_rate: FPDecimal,
+    pub is_instant_derivative_market_launch_enabled: Option<bool>,
+}
 
 /// Deposit is data format for the subaccount deposit
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -54,6 +83,16 @@ pub struct MarketVolume {
 pub enum MarketType {
     Spot,
     Derivative,
+}
+
+#[derive(Serialize_repr, Deserialize_repr, Default, Clone, Debug, PartialEq, Eq, JsonSchema, Copy)]
+#[repr(i32)]
+pub enum AtomicMarketOrderAccessLevel {
+    #[default]
+    Nobody = 0,
+    BeginBlockerSmartContractsOnly = 1,
+    SmartContractsOnly = 2,
+    Everyone = 3,
 }
 
 #[derive(Serialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, JsonSchema)]
@@ -145,7 +184,7 @@ impl<'de> Deserialize<'de> for MarketId {
 pub struct SubaccountId(String);
 
 impl SubaccountId {
-    pub fn new<S>(subaccount_id_s: S) -> std::result::Result<SubaccountId, cosmwasm_std::StdError>
+    pub fn new<S>(subaccount_id_s: S) -> Result<SubaccountId, StdError>
     where
         S: Into<String>,
     {
@@ -206,7 +245,7 @@ impl<'de> Deserialize<'de> for SubaccountId {
     }
 }
 
-#[derive(Serialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, JsonSchema)]
 pub struct ShortSubaccountId(String);
 
 const MAX_SHORT_SUBACCOUNT_NONCE: u16 = 999;
@@ -217,11 +256,17 @@ impl ShortSubaccountId {
         S: Into<String>,
     {
         let id = id_s.into();
+        let as_short = Self(id);
+        as_short.validate()
+    }
 
-        match id.parse::<u16>() {
-            Ok(value) if value <= MAX_SHORT_SUBACCOUNT_NONCE => Ok(Self(id)),
-            _ => Err(StdError::generic_err("Invalid value: ShortSubaccountId must be a number between 0-999")),
-        }
+    pub fn must_new<S>(id_s: S) -> ShortSubaccountId
+    where
+        S: Into<String>,
+    {
+        let id = id_s.into();
+        let as_short = Self(id);
+        as_short.validate().unwrap()
     }
 
     pub fn as_str(&self) -> &str {
@@ -233,6 +278,24 @@ impl ShortSubaccountId {
         S: Into<String>,
     {
         Self(id_s.into())
+    }
+
+    pub fn validate(&self) -> StdResult<Self> {
+        let as_decimal = match u32::from_str_radix(self.as_str(), 16) {
+            Ok(dec) => Ok(dec),
+            Err(_) => Err(StdError::generic_err(format!(
+                "Invalid value: ShortSubaccountId was not a hexadecimal number: {}",
+                &self.0
+            ))),
+        };
+
+        match as_decimal?.to_string().parse::<u16>() {
+            Ok(value) if value <= MAX_SHORT_SUBACCOUNT_NONCE => Ok(self.clone()),
+            _ => Err(StdError::generic_err(format!(
+                "Invalid value: ShortSubaccountId must be a number between 0-999, but {} was received",
+                &self.0
+            ))),
+        }
     }
 
     #[inline]
@@ -249,12 +312,32 @@ impl<'de> Deserialize<'de> for ShortSubaccountId {
         let id = String::deserialize(deserializer)?;
 
         match id.parse::<u16>() {
-            Ok(value) if value <= MAX_SHORT_SUBACCOUNT_NONCE => Ok(ShortSubaccountId::unchecked(id)),
-            _ => Err(D::Error::custom(format!(
-                "Invalid value in deserialization: ShortSubaccountId must be a number between 0-999, received {}",
-                id
-            ))),
+            Ok(value) if value <= MAX_SHORT_SUBACCOUNT_NONCE => Ok(ShortSubaccountId::unchecked(format!("{:03x}", value))),
+            _ => {
+                let maybe_long = SubaccountId::unchecked(id);
+                let maybe_short: ShortSubaccountId = ShortSubaccountId::from(maybe_long);
+                maybe_short.validate().map_err(|e| D::Error::custom(e.to_string()))
+            }
         }
+    }
+}
+
+impl Serialize for ShortSubaccountId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.validate().map_err(|e| S::Error::custom(e.to_string()))?;
+
+        let as_decimal = match u32::from_str_radix(self.0.as_str(), 16) {
+            Ok(dec) => Ok(dec),
+            Err(_) => Err(S::Error::custom(format!(
+                "Invalid value: ShortSubaccountId was not a hexadecimal number: {}",
+                &self.0
+            ))),
+        };
+
+        serializer.serialize_str(&format!("{:0>3}", as_decimal?.to_string()))
     }
 }
 
@@ -321,24 +404,6 @@ impl AsRef<str> for SubaccountId {
     }
 }
 
-impl<'a> PrimaryKey<'a> for &'a SubaccountId {
-    type Prefix = ();
-    type SubPrefix = ();
-    type Suffix = Self;
-    type SuperSuffix = Self;
-
-    fn key(&self) -> Vec<Key> {
-        // this is simple, we don't add more prefixes
-        vec![Key::Ref(self.as_ref().as_bytes())]
-    }
-}
-
-impl<'a> Prefixer<'a> for &'a SubaccountId {
-    fn prefix(&self) -> Vec<Key> {
-        vec![Key::Ref(self.as_bytes())]
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, JsonSchema)]
 pub struct Hash([u8; 32]);
 
@@ -371,8 +436,10 @@ impl fmt::Display for Hash {
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::StdError;
+    use serde_test::{assert_de_tokens, assert_ser_tokens, Token};
+    use std::panic::catch_unwind;
 
-    use crate::{MarketId, SubaccountId};
+    use crate::{MarketId, ShortSubaccountId, SubaccountId};
 
     #[test]
     fn unchecked_subaccount_id_to_lowercase() {
@@ -487,5 +554,218 @@ mod tests {
     fn subaccount_id_implements_display() {
         let subaccount_id = SubaccountId::unchecked("literal-string");
         assert_eq!(format!("{}", subaccount_id), "literal-string");
+    }
+
+    #[test]
+    fn smallest_hex_short_subaccount_id_works() {
+        let as_short = ShortSubaccountId::new("001");
+        assert!(as_short.is_ok(), "001 should be a valid short subaccount id");
+        assert_eq!(as_short.unwrap().as_str(), "001", "short subaccount id should be 001");
+    }
+
+    #[test]
+    fn hex_short_subaccount_id_works() {
+        let as_short = ShortSubaccountId::new("00a");
+        assert!(as_short.is_ok(), "00a should be a valid short subaccount id");
+        assert_eq!(as_short.unwrap().as_str(), "00a", "short subaccount id should be 00a");
+    }
+
+    #[test]
+    fn must_new_hex_short_subaccount_id_works() {
+        let as_short = ShortSubaccountId::must_new("00a");
+        assert_eq!(as_short.as_str(), "00a", "short subaccount id should be 00a");
+    }
+
+    #[test]
+    fn hex_short_subaccount_id_works_2() {
+        let as_short = ShortSubaccountId::new("a");
+        assert!(as_short.is_ok(), "a should be a valid short subaccount id");
+        assert_eq!(as_short.unwrap().as_str(), "a", "short subaccount id should be a");
+    }
+
+    #[test]
+    fn hex_short_subaccount_id_works_3() {
+        let as_short = ShortSubaccountId::new("010");
+        assert!(as_short.is_ok(), "010 should be a valid short subaccount id");
+        assert_eq!(as_short.unwrap().as_str(), "010", "short subaccount id should be 010");
+    }
+
+    #[test]
+    fn biggest_hex_short_subaccount_id_works() {
+        let as_short = ShortSubaccountId::new("3E7");
+        assert!(as_short.is_ok(), "3E7 should be a valid short subaccount id");
+        assert_eq!(as_short.unwrap().as_str(), "3E7", "short subaccount id should be 3E7");
+    }
+
+    #[test]
+    fn too_big_hex_short_subaccount_id_returns_err() {
+        let as_short = ShortSubaccountId::new("3E8");
+        assert!(as_short.is_err(), "3E8 should not be a valid short subaccount id");
+    }
+
+    #[test]
+    #[should_panic]
+    fn must_new_too_big_hex_short_subaccount_id_panics() {
+        ShortSubaccountId::must_new("3E8");
+    }
+
+    #[test]
+    fn random_string_short_subaccount_id_returns_err() {
+        let as_short = ShortSubaccountId::new("1ag");
+        assert!(as_short.is_err(), "1ag should not be a valid short subaccount id");
+    }
+
+    #[test]
+    fn smallest_hex_short_subaccount_id_works_unchecked() {
+        let as_short = ShortSubaccountId::unchecked("001");
+        assert_eq!(as_short.as_str(), "001", "unchecked short subaccount id should be 001");
+    }
+
+    #[test]
+    fn hex_short_subaccount_id_works_unchecked() {
+        let as_short = ShortSubaccountId::unchecked("00a");
+        assert_eq!(as_short.as_str(), "00a", "unchecked short subaccount id should be 00a");
+    }
+
+    #[test]
+    fn hex_short_subaccount_id_works_2_unchecked() {
+        let as_short = ShortSubaccountId::unchecked("a");
+        assert_eq!(as_short.as_str(), "a", "unchecked short subaccount id should be a");
+    }
+
+    #[test]
+    fn hex_short_subaccount_id_works_3_unchecked() {
+        let as_short = ShortSubaccountId::unchecked("010");
+        assert_eq!(as_short.as_str(), "010", "unchecked short subaccount id should be 010");
+    }
+
+    #[test]
+    fn biggest_hex_short_subaccount_id_works_unchecked() {
+        let as_short = ShortSubaccountId::unchecked("3E7");
+        assert_eq!(as_short.as_str(), "3E7", "unchecked short subaccount id should be 3E7");
+    }
+
+    #[test]
+    fn too_big_hex_short_subaccount_id_returns_unchecked_input() {
+        let as_short = ShortSubaccountId::unchecked("3E8");
+        assert_eq!(as_short.as_str(), "3E8", "unchecked short subaccount id should be 3E8");
+    }
+
+    #[test]
+    fn random_string_short_subaccount_id_returns_unchecked_input() {
+        let as_short = ShortSubaccountId::unchecked("1ag");
+        assert_eq!(as_short.as_str(), "1ag", "unchecked short subaccount id should be 1ag");
+    }
+
+    #[test]
+    fn smallest_hex_short_subaccount_is_correctly_serialized() {
+        let short_subaccount = ShortSubaccountId::unchecked("001");
+        assert_ser_tokens(&short_subaccount, &[Token::Str("001")]);
+    }
+
+    #[test]
+    fn hex_short_subaccount_is_correctly_serialized_as_decimal() {
+        let short_subaccount = ShortSubaccountId::unchecked("00a");
+        assert_ser_tokens(&short_subaccount, &[Token::Str("010")]);
+    }
+
+    #[test]
+    fn hex_short_subaccount_is_correctly_serialized_as_decimal_2() {
+        let short_subaccount = ShortSubaccountId::unchecked("a");
+        assert_ser_tokens(&short_subaccount, &[Token::Str("010")]);
+    }
+
+    #[test]
+    fn hex_short_subaccount_is_correctly_serialized_as_decimal_3() {
+        let short_subaccount = ShortSubaccountId::unchecked("010");
+        assert_ser_tokens(&short_subaccount, &[Token::Str("016")]);
+    }
+
+    #[test]
+    fn biggest_hex_short_subaccount_is_correctly_serialized_as_decimal() {
+        let short_subaccount = ShortSubaccountId::unchecked("3E7");
+        assert_ser_tokens(&short_subaccount, &[Token::Str("999")]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn too_big_hex_short_subaccount_returns_error_when_serialized() {
+        let short_subaccount = ShortSubaccountId::unchecked("3E8");
+        assert_ser_tokens(&short_subaccount, &[Token::Str("1000")]);
+    }
+
+    #[test]
+    fn random_string_short_subaccount_returns_error_when_serialized() {
+        let short_subaccount = ShortSubaccountId::unchecked("ah7");
+        let result = catch_unwind(|| assert_ser_tokens(&short_subaccount, &[Token::Str("1000")]));
+        assert!(result.is_err(), "serializing invalid short subaccount id should fail");
+    }
+
+    #[test]
+    fn short_subaccount_id_can_be_deserialized_from_valid_short_decimal() {
+        let short_subaccount = ShortSubaccountId::unchecked("001");
+        assert_de_tokens(&short_subaccount, &[Token::Str("1")]);
+    }
+
+    #[test]
+    fn short_subaccount_id_can_be_deserialized_from_valid_long_decimal() {
+        let short_subaccount = ShortSubaccountId::unchecked("00a");
+        assert_de_tokens(&short_subaccount, &[Token::Str("010")]);
+    }
+
+    #[test]
+    fn short_subaccount_id_can_be_deserialized_from_valid_long_subaccount_id() {
+        let short_subaccount = ShortSubaccountId::unchecked("001");
+        assert_de_tokens(
+            &short_subaccount,
+            &[Token::Str("0x17dcdb32a51ee1c43c3377349dba7f56bdf48e35000000000000000000000001")],
+        );
+    }
+
+    #[test]
+    fn short_subaccount_id_can_be_deserialized_from_valid_hex_long_subaccount_id() {
+        let short_subaccount = ShortSubaccountId::unchecked("00a");
+        assert_de_tokens(
+            &short_subaccount,
+            &[Token::Str("0x17dcdb32a51ee1c43c3377349dba7f56bdf48e3500000000000000000000000a")],
+        );
+    }
+
+    #[test]
+    fn short_subaccount_id_can_be_deserialized_from_valid_hex_highest_long_subaccount_id() {
+        let short_subaccount = ShortSubaccountId::unchecked("3e7");
+        assert_de_tokens(
+            &short_subaccount,
+            &[Token::Str("0x17dcdb32a51ee1c43c3377349dba7f56bdf48e350000000000000000000003E7")],
+        );
+    }
+
+    #[test]
+    fn short_subaccount_id_can_be_deserialized_from_valid_highest_hex_short_subaccount_id() {
+        let short_subaccount = ShortSubaccountId::unchecked("3e7");
+        assert_de_tokens(&short_subaccount, &[Token::Str("3e7")]);
+    }
+
+    #[test]
+    fn short_subaccount_id_can_be_deserialized_from_valid_highest_decimal_short_subaccount_id() {
+        let short_subaccount = ShortSubaccountId::unchecked("3e7");
+        assert_de_tokens(&short_subaccount, &[Token::Str("999")]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn short_subaccount_id_cannot_be_deserialized_from_too_high_hex_long_subaccount_id() {
+        let short_subaccount = ShortSubaccountId::unchecked("1000");
+        assert_de_tokens(
+            &short_subaccount,
+            &[Token::Str("0x17dcdb32a51ee1c43c3377349dba7f56bdf48e3500000000000000000000003E8")],
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn short_subaccount_id_cannot_be_deserialized_from_too_high_hex_short_subaccount_id() {
+        let short_subaccount = ShortSubaccountId::unchecked("3E8");
+        assert_de_tokens(&short_subaccount, &[Token::Str("3E8")]);
     }
 }

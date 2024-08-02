@@ -1,22 +1,20 @@
-use num::pow::Pow;
-
 use crate::fp_decimal::FPDecimal;
 
 impl FPDecimal {
-    pub fn _cos(mut x: FPDecimal) -> FPDecimal {
+    pub(self) fn _cos(mut x: FPDecimal) -> FPDecimal {
         x = FPDecimal::_change_range(x);
         FPDecimal::_sin(FPDecimal::PI / FPDecimal::TWO - x)
     }
 
-    fn _taylor_expansion(x: FPDecimal) -> FPDecimal {
-        x - (x.pow(FPDecimal::THREE) / FPDecimal::THREE.factorial()) + (x.pow(FPDecimal::FIVE) / FPDecimal::FIVE.factorial())
-            - (x.pow(FPDecimal::SEVEN) / FPDecimal::SEVEN.factorial())
-            + (x.pow(FPDecimal::NINE) / FPDecimal::NINE.factorial())
-            - (x.pow(FPDecimal::TWO + FPDecimal::NINE) / (FPDecimal::TWO + FPDecimal::NINE).factorial())
-            + (x.pow(FPDecimal::FOUR + FPDecimal::NINE) / (FPDecimal::FOUR + FPDecimal::NINE).factorial())
+    fn _sine_taylor_expansion(x: FPDecimal) -> FPDecimal {
+        x - (x.pow(FPDecimal::THREE).unwrap() / FPDecimal::THREE.factorial()) + (x.pow(FPDecimal::FIVE).unwrap() / FPDecimal::FIVE.factorial())
+            - (x.pow(FPDecimal::SEVEN).unwrap() / FPDecimal::SEVEN.factorial())
+            + (x.pow(FPDecimal::NINE).unwrap() / FPDecimal::NINE.factorial())
+            - (x.pow(FPDecimal::ELEVEN).unwrap() / (FPDecimal::ELEVEN).factorial())
+            + (x.pow(FPDecimal::THREE + FPDecimal::TEN).unwrap() / (FPDecimal::THREE + FPDecimal::TEN).factorial())
     }
 
-    pub fn _sin(mut x: FPDecimal) -> FPDecimal {
+    pub(self) fn _sin(mut x: FPDecimal) -> FPDecimal {
         x = FPDecimal::_change_range(x);
         let pi_by_2 = FPDecimal::PI / FPDecimal::TWO;
         let pi_plus_pi_by_2 = FPDecimal::PI + FPDecimal::PI / FPDecimal::TWO;
@@ -34,20 +32,20 @@ impl FPDecimal {
         }
 
         if FPDecimal::ZERO < x && x < pi_by_2 {
-            return FPDecimal::_taylor_expansion(x);
+            return FPDecimal::_sine_taylor_expansion(x);
         }
 
         if pi_by_2 < x && x < FPDecimal::PI {
-            return FPDecimal::_taylor_expansion(FPDecimal::PI - x);
+            return FPDecimal::_sine_taylor_expansion(FPDecimal::PI - x);
         }
 
         if FPDecimal::PI < x && x < pi_plus_pi_by_2 {
-            let mut output = FPDecimal::_taylor_expansion(x - FPDecimal::PI);
+            let mut output = FPDecimal::_sine_taylor_expansion(x - FPDecimal::PI);
             output.sign = 0;
             return output;
         }
 
-        let mut output = FPDecimal::_taylor_expansion(FPDecimal::PI * FPDecimal::TWO - x);
+        let mut output = FPDecimal::_sine_taylor_expansion(FPDecimal::PI * FPDecimal::TWO - x);
         output.sign = 0;
         output
     }
@@ -115,14 +113,12 @@ mod tests {
 
     #[test]
     fn test_sine_one() {
+        //0.84147098480789650666
         almost_eq(FPDecimal::ONE.imprecise_sin(), FPDecimal::from_str("0.8414709848").unwrap());
     }
 
     #[test]
     fn test_sine_negative_one() {
-        almost_eq(
-            (FPDecimal::ZERO - FPDecimal::ONE).imprecise_sin(),
-            FPDecimal::from_str("-0.8414709848").unwrap(),
-        );
+        almost_eq((-FPDecimal::ONE).imprecise_sin(), FPDecimal::from_str("-0.8414709848").unwrap());
     }
 }

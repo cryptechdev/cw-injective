@@ -1,5 +1,7 @@
+pub mod cancel;
 pub mod derivative;
 pub mod derivative_market;
+pub mod market;
 pub mod order;
 pub mod privileged_action;
 pub mod response;
