@@ -1,4 +1,4 @@
-use osmosis_std_derive::CosmwasmExt;
+use injective_std_derive::CosmwasmExt;
 /// BaseAccount defines a base account type. It contains all the necessary fields
 /// for basic account functionality. Any custom account type should extend this
 /// type for additional functionality (e.g. vesting).
@@ -388,9 +388,9 @@ impl<'a, Q: cosmwasm_std::CustomQuery> AuthQuerier<'a, Q> {
     pub fn account(&self, address: ::prost::alloc::string::String) -> Result<QueryAccountResponse, cosmwasm_std::StdError> {
         QueryAccountRequest { address }.query(self.querier)
     }
-    // pub fn account_address_by_id(&self, id: i64, account_id: u64) -> Result<QueryAccountAddressByIdResponse, cosmwasm_std::StdError> {
-    //     QueryAccountAddressByIdRequest { id, account_id }.query(self.querier)
-    // }
+    pub fn account_address_by_id(&self, id: i64, account_id: u64) -> Result<QueryAccountAddressByIdResponse, cosmwasm_std::StdError> {
+        QueryAccountAddressByIdRequest { id, account_id }.query(self.querier)
+    }
     pub fn params(&self) -> Result<QueryParamsResponse, cosmwasm_std::StdError> {
         QueryParamsRequest {}.query(self.querier)
     }

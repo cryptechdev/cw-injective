@@ -4,16 +4,19 @@ use serde::{Deserialize, Serialize};
 
 use injective_math::FPDecimal;
 
-use crate::exchange::{
-    cancel::CancellationStrategy,
-    order::OrderSide,
-    types::{MarketId, SubaccountId},
-};
 use crate::oracle::{
     types::{OracleHistoryOptions, OracleInfo, OracleType},
     volatility::TradeHistoryOptions,
 };
 use crate::route::InjectiveRoute;
+use crate::{
+    exchange::{
+        cancel::CancellationStrategy,
+        order::OrderSide,
+        types::{MarketId, SubaccountId},
+    },
+    oracle::types::ScalingOptions,
+};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -26,21 +29,6 @@ pub struct InjectiveQueryWrapper {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum InjectiveQuery {
-    // Authz
-    Grants {
-        granter: String,
-        grantee: String,
-        msg_type_url: String,
-        pagination: Option<u32>,
-    },
-    GranteeGrants {
-        grantee: String,
-        pagination: Option<u32>,
-    },
-    GranterGrants {
-        granter: String,
-        pagination: Option<u32>,
-    },
     // Exchange
     ExchangeParams {},
     SubaccountDeposit {
@@ -101,6 +89,7 @@ pub enum InjectiveQuery {
     PerpetualMarketFunding {
         market_id: MarketId,
     },
+    // Make sure you are aware of the potential to run out of gas when using this query
     MarketVolatility {
         market_id: MarketId,
         trade_history_options: TradeHistoryOptions,
@@ -115,6 +104,11 @@ pub enum InjectiveQuery {
         limit_cumulative_quantity: Option<FPDecimal>,
         limit_cumulative_notional: Option<FPDecimal>,
     },
+    DerivativeOrderbook {
+        market_id: MarketId,
+        limit: u64,
+        limit_cumulative_notional: Option<FPDecimal>,
+    },
     DerivativeMarketMidPriceAndTob {
         market_id: MarketId,
     },
@@ -123,12 +117,6 @@ pub enum InjectiveQuery {
     },
     AggregateAccountVolume {
         account: String,
-    },
-    DenomDecimal {
-        denom: String,
-    },
-    DenomDecimals {
-        denoms: Vec<String>,
     },
     MarketAtomicExecutionFeeMultiplier {
         market_id: MarketId,
@@ -148,6 +136,7 @@ pub enum InjectiveQuery {
         oracle_type: OracleType,
         base: String,
         quote: String,
+        scaling_options: Option<ScalingOptions>,
     },
     PythPrice {
         price_id: String,

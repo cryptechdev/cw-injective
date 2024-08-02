@@ -1,4 +1,4 @@
-use osmosis_std_derive::CosmwasmExt;
+use injective_std_derive::CosmwasmExt;
 /// DenomAuthorityMetadata specifies metadata for addresses that have specific
 /// capabilities over a token factory denom. Right now there is only one Admin
 /// permission, but is planned to be extended to the future.
@@ -30,8 +30,8 @@ pub struct EventMintTfDenom {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, Eq, ::prost::Message, ::serde::Serialize, ::serde::Deserialize, ::schemars::JsonSchema, CosmwasmExt)]
-#[proto_message(type_url = "/injective.tokenfactory.v1beta1.EventBurnTFDenom")]
-pub struct EventBurnTfDenom {
+#[proto_message(type_url = "/injective.tokenfactory.v1beta1.EventBurnDenom")]
+pub struct EventBurnDenom {
     #[prost(string, tag = "1")]
     pub burner_address: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
@@ -85,6 +85,16 @@ pub struct GenesisDenom {
     pub denom: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
     pub authority_metadata: ::core::option::Option<DenomAuthorityMetadata>,
+    #[prost(string, tag = "3")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub symbol: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "5")]
+    #[serde(
+        serialize_with = "crate::serde::as_str::serialize",
+        deserialize_with = "crate::serde::as_str::deserialize"
+    )]
+    pub decimals: u32,
 }
 /// QueryParamsRequest is the request type for the Query/Params RPC method.
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -187,6 +197,16 @@ pub struct MsgCreateDenom {
     /// subdenom can be up to 44 "alphanumeric" characters long.
     #[prost(string, tag = "2")]
     pub subdenom: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub symbol: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "5")]
+    #[serde(
+        serialize_with = "crate::serde::as_str::serialize",
+        deserialize_with = "crate::serde::as_str::deserialize"
+    )]
+    pub decimals: u32,
 }
 /// MsgCreateDenomResponse is the return value of MsgCreateDenom
 /// It returns the full string of the newly created denom

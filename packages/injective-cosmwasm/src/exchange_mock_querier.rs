@@ -3,8 +3,8 @@ use std::str::FromStr;
 
 use cosmwasm_std::testing::{MockApi, MockStorage};
 use cosmwasm_std::{
-    from_slice, to_binary, Addr, AllBalanceResponse, BalanceResponse, BankQuery, Binary, Coin, ContractResult, OwnedDeps, Querier, QuerierResult,
-    QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
+    from_json, to_json_binary, Addr, AllBalanceResponse, BalanceResponse, BankQuery, Binary, Coin, ContractResult, OwnedDeps, Querier, QuerierResult,
+    QueryRequest, SupplyResponse, SystemError, SystemResult, Uint128, WasmQuery,
 };
 
 use injective_math::FPDecimal;
@@ -18,15 +18,15 @@ use crate::oracle::{
     types::{OracleHistoryOptions, OracleType, PriceState, PythPriceState},
     volatility::TradeHistoryOptions,
 };
+
 use crate::tokenfactory::response::{TokenFactoryCreateDenomFeeResponse, TokenFactoryDenomSupplyResponse};
 use crate::wasmx::response::QueryContractRegistrationInfoResponse;
 use crate::{
     CancellationStrategy, Deposit, DerivativeMarketResponse, ExchangeParamsResponse, FullDerivativeMarket, InjectiveQuery, InjectiveQueryWrapper,
     MarketMidPriceAndTOBResponse, MarketStatus, MarketVolatilityResponse, OracleInfo, OracleVolatilityResponse, OrderSide,
     PerpetualMarketFundingResponse, PerpetualMarketInfoResponse, PythPriceResponse, QueryAggregateMarketVolumeResponse, QueryAggregateVolumeResponse,
-    QueryDenomDecimalResponse, QueryDenomDecimalsResponse, QueryMarketAtomicExecutionFeeMultiplierResponse, SpotMarket, SpotMarketResponse,
-    SubaccountDepositResponse, SubaccountEffectivePositionInMarketResponse, SubaccountPositionInMarketResponse, TraderDerivativeOrdersResponse,
-    TraderSpotOrdersResponse,
+    QueryMarketAtomicExecutionFeeMultiplierResponse, SpotMarket, SpotMarketResponse, SubaccountDepositResponse,
+    SubaccountEffectivePositionInMarketResponse, SubaccountPositionInMarketResponse, TraderDerivativeOrdersResponse, TraderSpotOrdersResponse,
 };
 use crate::{MarketId, SubaccountId};
 
@@ -49,7 +49,7 @@ fn default_subaccount_deposit_response_handler() -> QuerierResult {
             total_balance: FPDecimal::from(10_000_000_000u128),
         },
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_spot_market_response_handler(market_id: MarketId) -> QuerierResult {
@@ -67,22 +67,22 @@ fn default_spot_market_response_handler(market_id: MarketId) -> QuerierResult {
             min_quantity_tick_size: FPDecimal::from_str("1000000000000000.0").unwrap(),
         }),
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_trader_spot_orders_response_handler() -> QuerierResult {
     let response = TraderSpotOrdersResponse { orders: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_trader_spot_orders_to_cancel_up_to_amount_response_handler() -> QuerierResult {
     let response = TraderSpotOrdersResponse { orders: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_trader_derivative_orders_to_cancel_up_to_amount_response_handler() -> QuerierResult {
     let response = TraderDerivativeOrdersResponse { orders: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_derivative_market_response_handler(market_id: MarketId) -> QuerierResult {
@@ -106,10 +106,10 @@ fn default_derivative_market_response_handler(market_id: MarketId) -> QuerierRes
                 min_quantity_tick_size: FPDecimal::from_str("0.0001").unwrap(),
             }),
             info: None,
-            mark_price: FPDecimal::one(),
+            mark_price: FPDecimal::ONE,
         }),
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_subaccount_positions_response_handler() -> QuerierResult {
@@ -118,46 +118,46 @@ fn default_subaccount_positions_response_handler() -> QuerierResult {
 
 fn default_subaccount_position_in_market_response_handler() -> QuerierResult {
     let response = SubaccountPositionInMarketResponse { state: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_subaccount_effective_position_in_market_response_handler() -> QuerierResult {
     let response = SubaccountEffectivePositionInMarketResponse { state: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_trader_derivative_orders_response_handler() -> QuerierResult {
     let response = TraderDerivativeOrdersResponse { orders: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_trader_transient_spot_orders_response_handler() -> QuerierResult {
     let response = TraderSpotOrdersResponse { orders: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_trader_transient_derivative_orders_response_handler() -> QuerierResult {
     let response = TraderDerivativeOrdersResponse { orders: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_perpetual_market_info_response_handler() -> QuerierResult {
     let response = PerpetualMarketInfoResponse { info: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_perpetual_market_funding_response_handler() -> QuerierResult {
     let response = PerpetualMarketFundingResponse { state: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_market_volatility_response_handler() -> QuerierResult {
     let response = MarketVolatilityResponse {
-        volatility: Some(FPDecimal::one()),
+        volatility: Some(FPDecimal::ONE),
         history_metadata: None,
         raw_history: None,
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_spot_market_mid_price_and_tob_response_handler() -> QuerierResult {
@@ -166,7 +166,7 @@ fn default_spot_market_mid_price_and_tob_response_handler() -> QuerierResult {
         best_buy_price: None,
         best_sell_price: None,
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_derivative_market_mid_price_and_tob_response_handler() -> QuerierResult {
@@ -175,7 +175,7 @@ fn default_derivative_market_mid_price_and_tob_response_handler() -> QuerierResu
         best_buy_price: None,
         best_sell_price: None,
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_aggregate_market_volume_handler() -> QuerierResult {
@@ -185,12 +185,12 @@ fn default_aggregate_market_volume_handler() -> QuerierResult {
             taker_volume: FPDecimal::from(100u128),
         },
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_aggregate_account_volume_handler() -> QuerierResult {
     let response = QueryAggregateVolumeResponse {
-        aggregate_volumes: vec![
+        aggregate_volumes: Some(vec![
             MarketVolume {
                 market_id: MarketId::unchecked("market_id_1"),
                 volume: VolumeByType {
@@ -205,79 +205,77 @@ fn default_aggregate_account_volume_handler() -> QuerierResult {
                     taker_volume: FPDecimal::from(25000000u128),
                 },
             },
-        ],
+        ]),
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
-}
-
-fn default_denom_decimal_handler() -> QuerierResult {
-    let response = QueryDenomDecimalResponse { decimals: 6 };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
-}
-
-fn default_denom_decimals_handler() -> QuerierResult {
-    let response = QueryDenomDecimalsResponse { denom_decimals: vec![] };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_oracle_volatility_response_handler() -> QuerierResult {
     let response = OracleVolatilityResponse {
-        volatility: Some(FPDecimal::one()),
+        volatility: Some(FPDecimal::ONE),
         history_metadata: None,
         raw_history: None,
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_pyth_price_response_handler() -> QuerierResult {
     let response = PythPriceResponse {
         price_state: Some(PythPriceState {
             price_id: "0xff0ec26442c57d7456695b843694e7379b15cf1b250b27e0e47e657f1955aaff".to_string(),
-            ema_price: FPDecimal::one(),
-            ema_conf: FPDecimal::one(),
-            conf: FPDecimal::one(),
+            ema_price: FPDecimal::ONE,
+            ema_conf: FPDecimal::ONE,
+            conf: FPDecimal::ONE,
             publish_time: 1i64,
             price_state: PriceState {
-                price: FPDecimal::one(),
-                cumulative_price: FPDecimal::one(),
+                price: FPDecimal::ONE,
+                cumulative_price: FPDecimal::ONE,
                 timestamp: 1i64,
             },
         }),
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_token_factory_denom_total_supply_handler() -> QuerierResult {
     let response = TokenFactoryDenomSupplyResponse {
         total_supply: Uint128::from(1000u128),
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
+}
+
+fn default_bank_total_supply_handler() -> QuerierResult {
+    let response = SupplyResponse::new(Coin {
+        denom: "inj".to_string(),
+        amount: Uint128::from(1000u128),
+    });
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_token_factory_denom_creation_fee_handler() -> QuerierResult {
     let response = TokenFactoryCreateDenomFeeResponse {
         fee: vec![Coin::new(10, "inj")],
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_contract_registration_info_response_handler() -> QuerierResult {
     let response = QueryContractRegistrationInfoResponse { contract: None };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_balance_bank_query_handler(denom: impl Into<String>) -> QuerierResult {
     let response = BalanceResponse {
         amount: Coin::new(1000000000000000, denom),
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_all_balances_bank_query_handler() -> QuerierResult {
     let response = AllBalanceResponse {
         amount: vec![Coin::new(1000000000000000, "inj")],
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_exchange_params_response_handler() -> QuerierResult {
@@ -311,7 +309,7 @@ fn default_exchange_params_response_handler() -> QuerierResult {
             is_instant_derivative_market_launch_enabled: Some(true),
         }),
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_spot_market_orderbook_response_handler() -> QuerierResult {
@@ -322,18 +320,41 @@ fn default_spot_market_orderbook_response_handler() -> QuerierResult {
             PriceLevel::new(12u128.into(), 10u128.into()),
         ],
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
+}
+
+fn default_derivative_market_orderbook_response_handler() -> QuerierResult {
+    let response = QueryOrderbookResponse {
+        buys_price_level: vec![PriceLevel::new(9u128.into(), 10u128.into()), PriceLevel::new(8u128.into(), 10u128.into())],
+        sells_price_level: vec![
+            PriceLevel::new(11u128.into(), 10u128.into()),
+            PriceLevel::new(12u128.into(), 10u128.into()),
+        ],
+    };
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 fn default_market_atomic_execution_fee_multiplier_response_handler() -> QuerierResult {
     let response = QueryMarketAtomicExecutionFeeMultiplierResponse {
         multiplier: FPDecimal::from_str("2.0").unwrap(),
     };
-    SystemResult::Ok(ContractResult::from(to_binary(&response)))
+    SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
 }
 
 pub trait HandlesSmartQuery {
     fn handle(&self, contract_addr: &str, msg: &Binary) -> QuerierResult;
+}
+
+pub trait HandlesRawQuery {
+    fn handle(&self, contract_addr: &str, key: &Binary) -> QuerierResult;
+}
+
+pub trait HandlesContractInfo {
+    fn handle(&self, contract_addr: &str) -> QuerierResult;
+}
+
+pub trait HandlesCodeInfo {
+    fn handle(&self, code_id: u64) -> QuerierResult;
 }
 
 pub trait HandlesBankQuery {
@@ -444,12 +465,19 @@ pub trait HandlesPriceLevelsQuery {
     fn handle(&self, market_id: MarketId, order_side: OrderSide) -> QuerierResult;
 }
 
+pub trait HandlesDerivativePriceLevelsQuery {
+    fn handle(&self, market_id: MarketId) -> QuerierResult;
+}
+
 pub trait HandlesExchangeParamsQuery {
     fn handle(&self) -> QuerierResult;
 }
 
 pub struct WasmMockQuerier {
     pub smart_query_handler: Option<Box<dyn HandlesSmartQuery>>,
+    pub raw_query_handler: Option<Box<dyn HandlesRawQuery>>,
+    pub contract_info_handler: Option<Box<dyn HandlesContractInfo>>,
+    pub code_info_handler: Option<Box<dyn HandlesCodeInfo>>,
     pub subaccount_deposit_response_handler: Option<Box<dyn HandlesSubaccountAndDenomQuery>>,
     pub exchange_params_response_handler: Option<Box<dyn HandlesExchangeParamsQuery>>,
     pub spot_market_response_handler: Option<Box<dyn HandlesMarketIdQuery>>,
@@ -480,14 +508,16 @@ pub struct WasmMockQuerier {
     pub token_factory_denom_creation_fee_handler: Option<Box<dyn HandlesFeeQuery>>,
     pub balance_query_handler: Option<Box<dyn HandlesBankBalanceQuery>>,
     pub all_balances_query_handler: Option<Box<dyn HandlesBankAllBalancesQuery>>,
+    pub total_supply_handler: Option<Box<dyn HandlesDenomSupplyQuery>>,
     pub registered_contract_info_query_handler: Option<Box<dyn HandlesByAddressQuery>>,
     pub spot_market_orderbook_response_handler: Option<Box<dyn HandlesPriceLevelsQuery>>,
+    pub derivative_market_orderbook_response_handler: Option<Box<dyn HandlesDerivativePriceLevelsQuery>>,
     pub market_atomic_execution_fee_multiplier_response_handler: Option<Box<dyn HandlesMarketIdQuery>>,
 }
 
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
-        let request: QueryRequest<InjectiveQueryWrapper> = match from_slice(bin_request) {
+        let request: QueryRequest<InjectiveQueryWrapper> = match from_json(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
@@ -504,9 +534,24 @@ impl Querier for WasmMockQuerier {
 impl WasmMockQuerier {
     pub fn handle_query(&self, request: &QueryRequest<InjectiveQueryWrapper>) -> QuerierResult {
         match &request {
-            QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => match &self.smart_query_handler {
-                Some(handler) => handler.handle(contract_addr, msg),
-                None => panic!("Unknown smart query"),
+            QueryRequest::Wasm(query) => match query {
+                WasmQuery::Smart { contract_addr, msg } => match &self.smart_query_handler {
+                    Some(handler) => handler.handle(contract_addr, msg),
+                    None => panic!("Unknown smart query"),
+                },
+                WasmQuery::Raw { contract_addr, key } => match &self.raw_query_handler {
+                    Some(handler) => handler.handle(contract_addr, key),
+                    None => panic!("Unknown raw query"),
+                },
+                WasmQuery::CodeInfo { code_id } => match &self.code_info_handler {
+                    Some(handler) => handler.handle(*code_id),
+                    None => panic!("Unknown code info query"),
+                },
+                WasmQuery::ContractInfo { contract_addr } => match &self.contract_info_handler {
+                    Some(handler) => handler.handle(contract_addr),
+                    None => panic!("Unknown contract info query"),
+                },
+                _ => panic!("unsupported"),
             },
             QueryRequest::Bank(query) => match query {
                 BankQuery::Balance { address, denom } => match &self.balance_query_handler {
@@ -517,17 +562,13 @@ impl WasmMockQuerier {
                     Some(handler) => handler.handle(address.to_string()),
                     None => default_all_balances_bank_query_handler(),
                 },
+                BankQuery::Supply { denom } => match &self.total_supply_handler {
+                    Some(handler) => handler.handle(denom.to_string()),
+                    None => default_bank_total_supply_handler(),
+                },
                 _ => panic!("unsupported"),
             },
             QueryRequest::Custom(query) => match query.query_data.clone() {
-                InjectiveQuery::Grants {
-                    granter: _,
-                    grantee: _,
-                    msg_type_url: _,
-                    pagination: _,
-                } => todo!(),
-                InjectiveQuery::GranteeGrants { grantee: _, pagination: _ } => todo!(),
-                InjectiveQuery::GranterGrants { granter: _, pagination: _ } => todo!(),
                 InjectiveQuery::SubaccountDeposit { subaccount_id, denom } => match &self.subaccount_deposit_response_handler {
                     Some(handler) => handler.handle(subaccount_id, denom),
                     None => default_subaccount_deposit_response_handler(),
@@ -630,14 +671,6 @@ impl WasmMockQuerier {
                     Some(handler) => handler.handle(account),
                     None => default_aggregate_account_volume_handler(),
                 },
-                InjectiveQuery::DenomDecimal { denom } => match &self.denom_decimal_handler {
-                    Some(handler) => handler.handle(denom),
-                    None => default_denom_decimal_handler(),
-                },
-                InjectiveQuery::DenomDecimals { denoms } => match &self.denom_decimals_handler {
-                    Some(handler) => handler.handle(denoms),
-                    None => default_denom_decimals_handler(),
-                },
                 InjectiveQuery::StakedAmount {
                     delegator_address,
                     max_delegations,
@@ -653,7 +686,9 @@ impl WasmMockQuerier {
                     Some(handler) => handler.handle(base_info, quote_info, oracle_history_options),
                     None => default_oracle_volatility_response_handler(),
                 },
-                InjectiveQuery::OraclePrice { oracle_type, base, quote } => match &self.oracle_price_response_handler {
+                InjectiveQuery::OraclePrice {
+                    oracle_type, base, quote, ..
+                } => match &self.oracle_price_response_handler {
                     Some(handler) => handler.handle(oracle_type, base, quote),
                     None => default_oracle_volatility_response_handler(),
                 },
@@ -677,6 +712,10 @@ impl WasmMockQuerier {
                     Some(handler) => handler.handle(market_id, order_side),
                     None => default_spot_market_orderbook_response_handler(),
                 },
+                InjectiveQuery::DerivativeOrderbook { market_id, .. } => match &self.derivative_market_orderbook_response_handler {
+                    Some(handler) => handler.handle(market_id),
+                    None => default_derivative_market_orderbook_response_handler(),
+                },
                 InjectiveQuery::MarketAtomicExecutionFeeMultiplier { market_id } => {
                     match &self.market_atomic_execution_fee_multiplier_response_handler {
                         Some(handler) => handler.handle(market_id),
@@ -699,6 +738,9 @@ impl WasmMockQuerier {
     pub fn new() -> Self {
         WasmMockQuerier {
             smart_query_handler: None,
+            raw_query_handler: None,
+            code_info_handler: None,
+            contract_info_handler: None,
             subaccount_deposit_response_handler: None,
             exchange_params_response_handler: None,
             spot_market_response_handler: None,
@@ -731,7 +773,9 @@ impl WasmMockQuerier {
             registered_contract_info_query_handler: None,
             denom_decimals_handler: None,
             spot_market_orderbook_response_handler: None,
+            derivative_market_orderbook_response_handler: None,
             market_atomic_execution_fee_multiplier_response_handler: None,
+            total_supply_handler: None,
         }
     }
 }
@@ -760,7 +804,8 @@ impl TestDeposit {
 
 pub mod handlers {
     use cosmwasm_std::{
-        to_binary, AllBalanceResponse, BalanceResponse, Binary, Coin, ContractResult, QuerierResult, StdResult, SystemError, SystemResult, Uint128,
+        to_json_binary, AllBalanceResponse, BalanceResponse, Binary, CodeInfoResponse, Coin, ContractInfoResponse, ContractResult, QuerierResult,
+        StdResult, SupplyResponse, SystemError, SystemResult, Uint128,
     };
     use std::collections::HashMap;
 
@@ -774,14 +819,15 @@ pub mod handlers {
     use crate::{
         exchange_mock_querier::TestCoin, CancellationStrategy, Deposit, DerivativeMarket, DerivativeMarketResponse, EffectivePosition,
         FullDerivativeMarket, FullDerivativeMarketPerpetualInfo, HandlesMarketAndSubaccountQuery, HandlesMarketIdQuery, HandlesOracleVolatilityQuery,
-        HandlesPriceLevelsQuery, HandlesSmartQuery, HandlesSubaccountAndDenomQuery, HandlesTraderSpotOrdersToCancelUpToAmountQuery, MarketId,
-        MetadataStatistics, OracleVolatilityResponse, OrderSide, Position, PriceLevel, QueryMarketAtomicExecutionFeeMultiplierResponse, SpotMarket,
-        SpotMarketResponse, SubaccountDepositResponse, SubaccountEffectivePositionInMarketResponse, SubaccountId, SubaccountPositionInMarketResponse,
-        TradeRecord, TraderDerivativeOrdersResponse, TraderSpotOrdersResponse, TrimmedDerivativeLimitOrder, TrimmedSpotLimitOrder,
+        HandlesPriceLevelsQuery, HandlesRawQuery, HandlesSmartQuery, HandlesSubaccountAndDenomQuery, HandlesTraderSpotOrdersToCancelUpToAmountQuery,
+        MarketId, MetadataStatistics, OracleVolatilityResponse, OrderSide, Position, PriceLevel, QueryMarketAtomicExecutionFeeMultiplierResponse,
+        SpotMarket, SpotMarketResponse, SubaccountDepositResponse, SubaccountEffectivePositionInMarketResponse, SubaccountId,
+        SubaccountPositionInMarketResponse, TradeRecord, TraderDerivativeOrdersResponse, TraderSpotOrdersResponse, TrimmedDerivativeLimitOrder,
+        TrimmedSpotLimitOrder,
     };
     use crate::{
-        HandlesBankAllBalancesQuery, HandlesBankBalanceQuery, HandlesTraderDerivativeOrdersToCancelUpToAmountQuery, MarketMidPriceAndTOBResponse,
-        OracleType,
+        HandlesBankAllBalancesQuery, HandlesBankBalanceQuery, HandlesCodeInfo, HandlesContractInfo,
+        HandlesTraderDerivativeOrdersToCancelUpToAmountQuery, MarketMidPriceAndTOBResponse, OracleType,
     };
 
     use super::{HandlesOraclePriceQuery, TestDeposit};
@@ -804,7 +850,7 @@ pub mod handlers {
                         total_balance: matching_coins.first().unwrap().amount,
                     },
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { coins }))
@@ -829,7 +875,7 @@ pub mod handlers {
                 let response = SubaccountDepositResponse {
                     deposits: matching_deposits.first().unwrap().deposit.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { deposits }))
@@ -854,7 +900,7 @@ pub mod handlers {
                 let response = SpotMarketResponse {
                     market: self.market.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { market }))
@@ -875,7 +921,7 @@ pub mod handlers {
                     buys_price_level: if order_side != OrderSide::Sell { price_levels.clone() } else { vec![] },
                     sells_price_level: if order_side != OrderSide::Buy { price_levels } else { vec![] },
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { orderbooks }))
@@ -891,7 +937,7 @@ pub mod handlers {
                 let response = SpotMarketResponse {
                     market: self.markets.get(&market_id).cloned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
 
@@ -924,7 +970,7 @@ pub mod handlers {
                 let response = TraderSpotOrdersResponse {
                     orders: self.orders.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { orders, assertion }))
@@ -955,7 +1001,7 @@ pub mod handlers {
                 let response = TraderDerivativeOrdersResponse {
                     orders: self.orders.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { orders, assertion }))
@@ -980,7 +1026,7 @@ pub mod handlers {
                         mark_price: self.mark_price.to_owned(),
                     }),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { market, info, mark_price }))
@@ -995,7 +1041,7 @@ pub mod handlers {
                 let response = TraderSpotOrdersResponse {
                     orders: self.orders.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { orders }))
@@ -1012,7 +1058,7 @@ pub mod handlers {
                 let response = TraderDerivativeOrdersResponse {
                     orders: self.orders.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { orders }))
@@ -1030,7 +1076,7 @@ pub mod handlers {
                 let response = SubaccountEffectivePositionInMarketResponse {
                     state: self.position.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
 
@@ -1047,7 +1093,7 @@ pub mod handlers {
                 let response = SubaccountPositionInMarketResponse {
                     state: self.position.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
 
@@ -1071,7 +1117,7 @@ pub mod handlers {
                     best_buy_price: self.best_buy_price.to_owned(),
                     best_sell_price: self.best_sell_price.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp {
@@ -1103,7 +1149,7 @@ pub mod handlers {
                     history_metadata: self.history_metadata.to_owned(),
                     raw_history: self.raw_history.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp {
@@ -1144,7 +1190,7 @@ pub mod handlers {
                         quote_timestamp: self.quote_timestamp.to_owned(),
                     }),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp {
@@ -1158,6 +1204,19 @@ pub mod handlers {
         }))
     }
 
+    pub fn create_bank_supply_handler(supply: Uint128) -> Option<Box<dyn HandlesDenomSupplyQuery>> {
+        struct Temp {
+            supply: Uint128,
+        }
+        impl HandlesDenomSupplyQuery for Temp {
+            fn handle(&self, denom: String) -> QuerierResult {
+                let response = SupplyResponse::new(Coin { denom, amount: self.supply });
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
+            }
+        }
+        Some(Box::new(Temp { supply }))
+    }
+
     pub fn create_denom_supply_handler(supply: Uint128) -> Option<Box<dyn HandlesDenomSupplyQuery>> {
         struct Temp {
             supply: Uint128,
@@ -1165,7 +1224,7 @@ pub mod handlers {
         impl HandlesDenomSupplyQuery for Temp {
             fn handle(&self, _denom: String) -> QuerierResult {
                 let response = TokenFactoryDenomSupplyResponse { total_supply: self.supply };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { supply }))
@@ -1178,7 +1237,7 @@ pub mod handlers {
         impl HandlesFeeQuery for Temp {
             fn handle(&self) -> QuerierResult {
                 let response = TokenFactoryCreateDenomFeeResponse { fee: self.fee.to_owned() };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { fee }))
@@ -1193,7 +1252,7 @@ pub mod handlers {
                 let response = QueryContractRegistrationInfoResponse {
                     contract: self.contract.to_owned(),
                 };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { contract }))
@@ -1210,7 +1269,7 @@ pub mod handlers {
                 let balance = balances.iter().find(|b| -> bool { b.denom == denom }).unwrap_or(&empty);
                 let res = BalanceResponse { amount: balance.to_owned() };
 
-                SystemResult::Ok(ContractResult::from(to_binary(&res)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&res)))
             }
         }
         Some(Box::new(Temp { balances }))
@@ -1226,7 +1285,7 @@ pub mod handlers {
                     amount: self.balances.to_owned(),
                 };
 
-                SystemResult::Ok(ContractResult::from(to_binary(&res)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&res)))
             }
         }
         Some(Box::new(Temp { balances }))
@@ -1239,7 +1298,7 @@ pub mod handlers {
         impl HandlesMarketIdQuery for Temp {
             fn handle(&self, _market_id: MarketId) -> QuerierResult {
                 let response = QueryMarketAtomicExecutionFeeMultiplierResponse { multiplier: self.multiplier };
-                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
             }
         }
         Some(Box::new(Temp { multiplier }))
@@ -1258,5 +1317,62 @@ pub mod handlers {
             }
         }
         Some(Box::new(Temp { result }))
+    }
+
+    pub fn create_raw_query_handler(result: Result<Binary, SystemError>) -> Option<Box<dyn HandlesRawQuery>> {
+        struct Temp {
+            result: Result<Binary, SystemError>,
+        }
+        impl HandlesRawQuery for Temp {
+            fn handle(&self, _contract_addr: &str, _key: &Binary) -> QuerierResult {
+                match self.result.clone() {
+                    Ok(resp) => SystemResult::Ok(ContractResult::from(StdResult::Ok(resp))),
+                    Err(err) => SystemResult::Err(err),
+                }
+            }
+        }
+        Some(Box::new(Temp { result }))
+    }
+
+    pub fn create_contract_info_handler(code_id: u64, creator: impl ToString) -> Option<Box<dyn HandlesContractInfo>> {
+        struct Temp {
+            code_id: u64,
+            creator: String,
+        }
+
+        impl HandlesContractInfo for Temp {
+            fn handle(&self, _contract_addr: &str) -> QuerierResult {
+                let mut response = ContractInfoResponse::default();
+                response.code_id = self.code_id;
+                response.creator = self.creator.to_owned();
+
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
+            }
+        }
+
+        Some(Box::new(Temp {
+            code_id,
+            creator: creator.to_string(),
+        }))
+    }
+
+    pub fn create_code_id_handler(creator: impl ToString) -> Option<Box<dyn HandlesCodeInfo>> {
+        struct Temp {
+            creator: String,
+        }
+
+        impl HandlesCodeInfo for Temp {
+            fn handle(&self, code_id: u64) -> QuerierResult {
+                let mut response = CodeInfoResponse::default();
+                response.code_id = code_id;
+                response.creator = self.creator.to_owned();
+
+                SystemResult::Ok(ContractResult::from(to_json_binary(&response)))
+            }
+        }
+
+        Some(Box::new(Temp {
+            creator: creator.to_string(),
+        }))
     }
 }

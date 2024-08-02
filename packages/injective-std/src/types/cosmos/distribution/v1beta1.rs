@@ -1,4 +1,4 @@
-use osmosis_std_derive::CosmwasmExt;
+use injective_std_derive::CosmwasmExt;
 /// Params defines the set of params for the distribution module.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, Eq, ::prost::Message, ::serde::Serialize, ::serde::Deserialize, ::schemars::JsonSchema, CosmwasmExt)]
@@ -119,20 +119,20 @@ pub struct FeePool {
 /// longer a need for an explicit CommunityPoolSpendProposal. To spend community
 /// pool funds, a simple MsgCommunityPoolSpend can be invoked from the x/gov
 /// module via a v1 governance proposal.
-// #[allow(clippy::derive_partial_eq_without_eq)]
-// #[derive(Clone, PartialEq, Eq, ::prost::Message, ::serde::Serialize, ::serde::Deserialize, ::schemars::JsonSchema, CosmwasmExt)]
-// #[proto_message(type_url = "/cosmos.distribution.v1beta1.CommunityPoolSpendProposalCommunityPoolSpendProposal")]
-// #[deprecated]
-// pub struct CommunityPoolSpendProposal {
-//     #[prost(string, tag = "1")]
-//     pub title: ::prost::alloc::string::String,
-//     #[prost(string, tag = "2")]
-//     pub description: ::prost::alloc::string::String,
-//     #[prost(string, tag = "3")]
-//     pub recipient: ::prost::alloc::string::String,
-//     #[prost(message, repeated, tag = "4")]
-//     pub amount: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
-// }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, Eq, ::prost::Message, ::serde::Serialize, ::serde::Deserialize, ::schemars::JsonSchema, CosmwasmExt)]
+#[proto_message(type_url = "/cosmos.distribution.v1beta1.CommunityPoolSpendProposalCommunityPoolSpendProposal")]
+#[deprecated]
+pub struct CommunityPoolSpendProposal {
+    #[prost(string, tag = "1")]
+    pub title: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub description: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub recipient: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "4")]
+    pub amount: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
+}
 /// DelegatorStartingInfo represents the starting info for a delegator reward
 /// period. It tracks the previous validator period, the delegation's amount of
 /// staking token, and the creation height (to check later on if any slashes have
@@ -715,6 +715,29 @@ pub struct MsgCommunityPoolSpend {
 #[derive(Clone, PartialEq, Eq, ::prost::Message, ::serde::Serialize, ::serde::Deserialize, ::schemars::JsonSchema, CosmwasmExt)]
 #[proto_message(type_url = "/cosmos.distribution.v1beta1.MsgCommunityPoolSpendResponse")]
 pub struct MsgCommunityPoolSpendResponse {}
+/// DepositValidatorRewardsPool defines the request structure to provide
+/// additional rewards to delegators from a specific validator.
+///
+/// Since: cosmos-sdk 0.50
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, Eq, ::prost::Message, ::serde::Serialize, ::serde::Deserialize, ::schemars::JsonSchema, CosmwasmExt)]
+#[proto_message(type_url = "/cosmos.distribution.v1beta1.MsgDepositValidatorRewardsPool")]
+pub struct MsgDepositValidatorRewardsPool {
+    #[prost(string, tag = "1")]
+    pub depositor: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub validator_address: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub amount: ::prost::alloc::vec::Vec<super::super::base::v1beta1::Coin>,
+}
+/// MsgDepositValidatorRewardsPoolResponse defines the response to executing a
+/// MsgDepositValidatorRewardsPool message.
+///
+/// Since: cosmos-sdk 0.50
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, Eq, ::prost::Message, ::serde::Serialize, ::serde::Deserialize, ::schemars::JsonSchema, CosmwasmExt)]
+#[proto_message(type_url = "/cosmos.distribution.v1beta1.MsgDepositValidatorRewardsPoolResponse")]
+pub struct MsgDepositValidatorRewardsPoolResponse {}
 pub struct DistributionQuerier<'a, Q: cosmwasm_std::CustomQuery> {
     querier: &'a cosmwasm_std::QuerierWrapper<'a, Q>,
 }
