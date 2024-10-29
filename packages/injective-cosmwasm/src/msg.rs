@@ -136,6 +136,12 @@ pub enum InjectiveMsg {
         name: String,
         symbol: String,
         decimals: u8,
+
+        description: String,
+        display: String,
+        uri: String,
+        // base: denom,
+        // denomUnits: denomUnitsIfTokenHas6Decimals  /** choose if you want to have 6 or 0 decimals for the token */,
     },
     /// Wasmx - update contract
     UpdateContract {
@@ -420,7 +426,15 @@ pub fn create_new_denom_msg(sender: String, subdenom: String) -> CosmosMsg<Injec
     .into()
 }
 
-pub fn create_set_token_metadata_msg(denom: String, name: String, symbol: String, decimals: u8) -> CosmosMsg<InjectiveMsgWrapper> {
+pub fn create_set_token_metadata_msg(
+    denom: String,
+    name: String,
+    symbol: String,
+    display: String,
+    description: String,
+    uri: String,
+    decimals: u8,
+) -> CosmosMsg<InjectiveMsgWrapper> {
     InjectiveMsgWrapper {
         route: InjectiveRoute::Tokenfactory,
         msg_data: InjectiveMsg::SetTokenMetadata {
@@ -428,6 +442,9 @@ pub fn create_set_token_metadata_msg(denom: String, name: String, symbol: String
             name,
             symbol,
             decimals,
+            description,
+            display,
+            uri,
         },
     }
     .into()
