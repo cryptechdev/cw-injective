@@ -137,6 +137,12 @@ pub enum InjectiveMsg {
         symbol: String,
         decimals: u8,
     },
+    /// Change token factory admin
+    ChangeAdmin {
+        sender: Addr,
+        denom: String,
+        new_admin: Addr,
+    },
     /// Wasmx - update contract
     UpdateContract {
         sender: Addr,
@@ -429,6 +435,14 @@ pub fn create_set_token_metadata_msg(denom: String, name: String, symbol: String
             symbol,
             decimals,
         },
+    }
+    .into()
+}
+
+pub fn create_change_admin_msg(sender: Addr, denom: String, new_admin: Addr) -> CosmosMsg<InjectiveMsgWrapper> {
+    InjectiveMsgWrapper {
+        route: InjectiveRoute::Tokenfactory,
+        msg_data: InjectiveMsg::ChangeAdmin { sender, denom, new_admin },
     }
     .into()
 }
